@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CentraLu Xbox – Consulta de Cubagem</title>
+  <meta name="description" content="CentraLu Xbox: consulte produtos do estoque, calcule cubagem por caixas e veja o total consolidado." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Background blobs -->
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <rect width="40" height="40" rx="10" fill="url(#logoGrad)"/>
+          <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" opacity="0.9"/>
+          <circle cx="20" cy="20" r="4" fill="white"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+              <stop offset="0%" stop-color="#6c63ff"/>
+              <stop offset="100%" stop-color="#00d4aa"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <span class="logo-title">CentraLu Xbox</span>
+          <span class="logo-sub">Sistema de Cubagem</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div id="dataStatus" class="data-status loading">
+          <span class="status-dot"></span>
+          <span class="status-text">Carregando dados...</span>
+        </div>
+        <button id="themeToggle" class="theme-btn" aria-label="Alternar tema" title="Alternar tema">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Search Section -->
+    <section class="search-section" aria-label="Adicionar produto">
+      <div class="section-header">
+        <h1>Calcular Cubagem</h1>
+        <p class="section-desc">Insira o código do produto e a quantidade de caixas para calcular a cubagem.</p>
+      </div>
+
+      <div class="search-card glass-card">
+        <form id="searchForm" class="search-form" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="codeInput">Código do Produto</label>
+              <div class="input-wrapper">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+                  <line x1="9" y1="9" x2="9" y2="20"/>
+                </svg>
+                <input
+                  type="text"
+                  id="codeInput"
+                  placeholder="Ex: 6559"
+                  autocomplete="off"
+                  spellcheck="false"
+                  maxlength="20"
+                />
+              </div>
+              <div id="codeError" class="field-error" aria-live="polite"></div>
+              <div id="productPreview" class="product-preview" aria-live="polite"></div>
+            </div>
+
+            <div class="form-group form-group-qty">
+              <label for="qtyInput">Quantidade de Caixas</label>
+              <div class="input-wrapper">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
+                <input
+                  type="number"
+                  id="qtyInput"
+                  placeholder="1"
+                  min="1"
+                  step="1"
+                  value="1"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="addBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Adicionar Produto
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Products List -->
+    <section class="products-section" aria-label="Produtos adicionados">
+      <div id="emptyState" class="empty-state">
+        <svg viewBox="0 0 80 80" fill="none" aria-hidden="true">
+          <circle cx="40" cy="40" r="38" stroke="currentColor" stroke-width="1.5" opacity="0.2"/>
+          <path d="M26 50 L40 24 L54 50 Z" stroke="currentColor" stroke-width="1.5" opacity="0.35" fill="none"/>
+          <circle cx="40" cy="43" r="3" fill="currentColor" opacity="0.3"/>
+          <line x1="40" y1="30" x2="40" y2="39" stroke="currentColor" stroke-width="1.5" opacity="0.3" stroke-linecap="round"/>
+        </svg>
+        <p>Nenhum produto adicionado ainda.</p>
+        <span>Busque pelo código acima para começar.</span>
+      </div>
+
+      <div id="productsList" class="products-list" role="list"></div>
+    </section>
+
+    <!-- Totals Panel -->
+    <section id="totalsPanel" class="totals-panel glass-card" aria-label="Totais" hidden>
+      <h2 class="totals-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Totais Consolidados
+      </h2>
+      <div class="totals-grid">
+        <div class="total-card">
+          <span class="total-label">Itens Diferentes</span>
+          <span id="totalItems" class="total-value">0</span>
+        </div>
+        <div class="total-card">
+          <span class="total-label">Total de Caixas</span>
+          <span id="totalBoxes" class="total-value">0</span>
+        </div>
+        <div class="total-card accent-vol">
+          <span class="total-label">Volume Total</span>
+          <span id="totalVolume" class="total-value">0,000 m³</span>
+        </div>
+        <div class="total-card accent-wt">
+          <span class="total-label">Peso Total</span>
+          <span id="totalWeight" class="total-value">0,00 kg</span>
+        </div>
+      </div>
+      <button id="clearAllBtn" class="btn-danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+        Limpar Tudo
+      </button>
+    </section>
+  </main>
+
+  <footer>
+    <p>CentraLu Xbox &copy; 2026 &mdash; Sistema de Cubagem de Estoque</p>
+  </footer>
+
+  <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
