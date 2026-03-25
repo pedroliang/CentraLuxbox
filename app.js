@@ -2,11 +2,16 @@
  * CentraLu Xbox – Application Logic
  * Loads product data from Google Sheets CSV and provides
  * cubagem (volume) calculations for multiple products.
+ * Includes Supabase cloud sync for saved orders.
  */
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/export?format=csv&gid=0';
+
+// Supabase Config (Extracted from environment)
+const SUPABASE_URL = 'https://fruwdnbysjpaccregbnj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZydXdkbmJ5c2pwYWNjcmVnYm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjM3NTIsImV4cCI6MjA4OTY5OTc1Mn0.l7R4DGuXTKIxtDPWGfGvKCLHPIXWt8jTYoN-8eeys34';
 
 // Column indices (0-based) in the actual data rows (after skipping header rows)
 const COL = {
@@ -20,13 +25,14 @@ const COL = {
   GTIN: 19,
 };
 
-// The first 3 rows of the sheet are headers, skip them
 const HEADER_ROWS = 3;
+const SAVED_ORDERS_KEY = 'cxb-saved-orders';
 
 // ─── State ─────────────────────────────────────────────────────────────────
-let productDB = new Map(); // code -> product object
-let cartItems  = [];       // array of { id, product, qty }
+let productDB = new Map();
+let cartItems  = [];
 let nextId     = 1;
+let supabase   = null;
 
 // ─── DOM refs ───────────────────────────────────────────────────────────────
 const themeToggle   = document.getElementById('themeToggle');
@@ -48,11 +54,16 @@ const totalVolume   = document.getElementById('totalVolume');
 const totalWeight   = document.getElementById('totalWeight');
 const printBtn      = document.getElementById('printBtn');
 const clearAllBtn   = document.getElementById('clearAllBtn');
+const toast         = document.getElementById('toast');
+const printHeader   = document.getElementById('printHeader');
+const printOrderNum = document.getElementById('printOrderNum');
+const printCustomerName = document.getElementById('printCustomerName');
 const printTimestamp = document.getElementById('printTimestamp');
 const saveOrderBtn   = document.getElementById('saveOrderBtn');
 const savedOrdersSection = document.getElementById('savedOrdersSection');
 const savedOrdersCount   = document.getElementById('savedOrdersCount');
 const savedOrdersList    = document.getElementById('savedOrdersList');
+const syncStatus         = document.getElementById('syncStatus');
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
 (function initTheme() {
@@ -67,19 +78,26 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('cxb-theme', next);
 });
 
+// ─── Supabase Initialize ────────────────────────────────────────────────────
+function initSupabase() {
+  if (typeof window.supabase !== 'undefined') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('Supabase initialized');
+  } else {
+    console.warn('Supabase SDK not found');
+  }
+}
+
 // ─── CSV Loader ─────────────────────────────────────────────────────────────
 async function loadData() {
   setStatus('loading', 'Carregando dados...');
   try {
-    // Use a CORS proxy since Google Sheets export needs no auth but browser may block
-    // We try direct first, then fall back to a proxy
     let csvText;
     try {
       const res = await fetch(SHEET_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('direct fetch failed');
       csvText = await res.text();
     } catch {
-      // Fallback: allorigins proxy
       const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(SHEET_URL)}`;
       const res = await fetch(proxy);
       if (!res.ok) throw new Error('proxy fetch failed');
@@ -98,6 +116,7 @@ async function loadData() {
 }
 
 function setStatus(type, text) {
+  if (!dataStatus) return;
   dataStatus.className = `data-status ${type}`;
   statusText.textContent = text;
 }
@@ -105,13 +124,12 @@ function setStatus(type, text) {
 // ─── CSV Parser ─────────────────────────────────────────────────────────────
 function parseCSV(text) {
   const rows = parseCSVRows(text);
-  // Skip the 3 header rows
   const dataRows = rows.slice(HEADER_ROWS);
 
   productDB.clear();
   for (const row of dataRows) {
     const code = (row[COL.CODE] || '').trim();
-    if (!code || isNaN(+code)) continue; // skip non-numeric or empty codes
+    if (!code || isNaN(+code)) continue;
 
     const product = {
       code,
@@ -124,61 +142,38 @@ function parseCSV(text) {
       gtin:  (row[COL.GTIN] || '').trim(),
     };
 
-    // Only store the first occurrence of a code to avoid duplicates
     if (!productDB.has(code)) {
       productDB.set(code, product);
     }
   }
 }
 
-/**
- * Full RFC-4180-compliant CSV parser handling quoted fields & embedded commas.
- */
 function parseCSVRows(text) {
   const rows = [];
   let row = [];
   let col = '';
   let inQuote = false;
   let i = 0;
-
   while (i < text.length) {
     const ch = text[i];
-
     if (inQuote) {
       if (ch === '"') {
-        if (text[i + 1] === '"') { col += '"'; i += 2; continue; } // escaped quote
+        if (text[i + 1] === '"') { col += '"'; i += 2; continue; }
         inQuote = false;
-      } else {
-        col += ch;
-      }
+      } else col += ch;
     } else {
-      if (ch === '"') {
-        inQuote = true;
-      } else if (ch === ',') {
-        row.push(col); col = '';
-      } else if (ch === '\r' && text[i + 1] === '\n') {
-        row.push(col); col = '';
-        rows.push(row); row = [];
-        i += 2; continue;
-      } else if (ch === '\n' || ch === '\r') {
-        row.push(col); col = '';
-        rows.push(row); row = [];
-      } else {
-        col += ch;
-      }
+      if (ch === '"') inQuote = true;
+      else if (ch === ',') { row.push(col); col = ''; }
+      else if (ch === '\r' && text[i + 1] === '\n') { row.push(col); col = ''; rows.push(row); row = []; i += 2; continue; }
+      else if (ch === '\n' || ch === '\r') { row.push(col); col = ''; rows.push(row); row = []; }
+      else col += ch;
     }
     i++;
   }
-
-  // last row
-  if (col !== '' || row.length > 0) {
-    row.push(col);
-    rows.push(row);
-  }
+  if (col !== '' || row.length > 0) { row.push(col); rows.push(row); }
   return rows;
 }
 
-/** Parse a dimension string like "49,50" → 49.5 */
 function parseNum(val) {
   if (!val) return null;
   const s = String(val).trim().replace(',', '.');
@@ -186,7 +181,6 @@ function parseNum(val) {
   return isNaN(n) ? null : n;
 }
 
-/** Parse peso string like "18,30 KG" → 18.30 */
 function parsePeso(val) {
   if (!val) return null;
   const s = String(val).replace(/[^\d,.]/g, '').trim().replace(',', '.');
@@ -199,58 +193,28 @@ codeInput.addEventListener('input', () => {
   codeError.textContent = '';
   const code = codeInput.value.trim();
   if (!code) { productPreview.textContent = ''; return; }
-
-  if (productDB.size === 0) {
-    productPreview.textContent = '';
-    return;
-  }
-
   const p = productDB.get(code);
-  if (p) {
-    productPreview.innerHTML = `✓ ${p.desc || 'Sem descrição'}`;
-  } else {
-    productPreview.textContent = '';
-  }
+  if (p) productPreview.innerHTML = `✓ ${p.desc || 'Sem descrição'}`;
+  else productPreview.textContent = '';
 });
 
 // ─── Form Submit ─────────────────────────────────────────────────────────────
 searchForm.addEventListener('submit', (e) => {
   e.preventDefault();
-
-  if (productDB.size === 0) {
-    showToast('Dados ainda não carregados. Aguarde.', 'error');
-    return;
-  }
-
+  if (productDB.size === 0) { showToast('Dados ainda não carregados.', 'error'); return; }
   const code = codeInput.value.trim();
   const qty  = parseInt(qtyInput.value, 10) || 1;
-
-  // Validate
   codeError.textContent = '';
   if (!code) { codeError.textContent = 'Informe um código.'; codeInput.focus(); return; }
-
   const product = productDB.get(code);
-  if (!product) {
-    codeError.textContent = `Código "${code}" não encontrado na planilha.`;
-    codeInput.focus();
-    return;
-  }
+  if (!product) { codeError.textContent = `Código "${code}" não encontrado.`; codeInput.focus(); return; }
+  if (qty < 1) { codeError.textContent = 'Mínimo: 1.'; qtyInput.focus(); return; }
 
-  if (qty < 1) { codeError.textContent = 'Quantidade mínima: 1.'; qtyInput.focus(); return; }
-
-  // Add to cart
   const item = { id: nextId++, product, qty };
   cartItems.push(item);
-
   renderCart();
   updateTotals();
-
-  // Reset form
-  codeInput.value = '';
-  qtyInput.value = '1';
-  productPreview.textContent = '';
-  codeInput.focus();
-
+  codeInput.value = ''; qtyInput.value = '1'; productPreview.textContent = ''; codeInput.focus();
   showToast(`"${product.desc || code}" adicionado!`, 'success');
 });
 
@@ -259,67 +223,40 @@ function renderCart() {
   const hasItems = cartItems.length > 0;
   emptyState.style.display = hasItems ? 'none' : '';
   totalsPanel.hidden = !hasItems;
-
   productsList.innerHTML = '';
-  for (const item of cartItems) {
-    productsList.appendChild(buildProductCard(item));
-  }
+  for (const item of cartItems) productsList.appendChild(buildProductCard(item));
 }
 
 function buildProductCard(item) {
   const { id, product: p, qty } = item;
   const hasDims = p.x !== null && p.y !== null && p.z !== null;
   const hasPeso = p.peso !== null;
-
   const card = document.createElement('div');
   card.className = 'product-card';
   card.setAttribute('data-id', id);
-  card.setAttribute('role', 'listitem');
-
   const { vol, wt } = calcItem(p, qty);
-
   card.innerHTML = `
     <div class="card-header">
       <div>
         <span class="card-code">Cód. ${escHtml(p.code)}</span>
         <div class="card-name">${escHtml(p.desc || '(sem descrição)')}</div>
       </div>
-      <button class="card-remove-btn" aria-label="Remover produto" data-remove-id="${id}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
+      <button class="card-remove-btn" aria-label="Remover" data-remove-id="${id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-
     <div class="card-dims">
-      ${buildDimBadge('X (cm)', p.x)}
-      ${buildDimBadge('Y (cm)', p.y)}
-      ${buildDimBadge('Z (cm)', p.z)}
+      ${buildDimBadge('X (cm)', p.x)} ${buildDimBadge('Y (cm)', p.y)} ${buildDimBadge('Z (cm)', p.z)}
       ${buildDimBadge('Peso/cx', p.peso !== null ? `${fmtNum(p.peso)} kg` : null)}
     </div>
-
     <div class="card-meta">
-      ${buildMetaItem('Lote', p.lote)}
-      ${buildMetaItem('GTIN-14', p.gtin)}
+      ${buildMetaItem('Lote', p.lote)} ${buildMetaItem('GTIN-14', p.gtin)}
     </div>
-
-    ${!hasDims ? `
-    <div class="no-cubagem-warn">
-      ⚠ Dimensões não disponíveis — cubagem não calculada.
-    </div>` : ''}
-
+    ${!hasDims ? `<div class="no-cubagem-warn">⚠ Dimensões não disponíveis.</div>` : ''}
     <div class="card-calc">
-      <div class="calc-qty-wrapper">
+      <div class="calc-qty-wrapper" data-qty="${qty}">
         <span class="calc-qty-label">Caixas:</span>
-        <input
-          type="number"
-          class="calc-qty-input"
-          data-item-id="${id}"
-          value="${qty}"
-          min="1"
-          step="1"
-          aria-label="Quantidade de caixas"
-        />
+        <input type="number" class="calc-qty-input" data-item-id="${id}" value="${qty}" min="1" step="1" />
       </div>
       <div class="calc-result">
         <span class="calc-result-label">Volume</span>
@@ -328,188 +265,136 @@ function buildProductCard(item) {
       </div>
     </div>
   `;
-
-  // Remove button
-  card.querySelector('[data-remove-id]').addEventListener('click', () => {
-    removeItem(id);
-  });
-
-  // Qty change
+  card.querySelector('[data-remove-id]').addEventListener('click', () => removeItem(id));
   card.querySelector('.calc-qty-input').addEventListener('input', (e) => {
     const newQty = Math.max(1, parseInt(e.target.value, 10) || 1);
     e.target.value = newQty;
-    
-    // Update data-qty for print CSS
     e.target.closest('.calc-qty-wrapper').setAttribute('data-qty', newQty);
-    
     updateItemQty(id, newQty);
   });
-
-  // Initial set for data-qty
-  card.querySelector('.calc-qty-wrapper').setAttribute('data-qty', qty);
-
   return card;
 }
 
 function buildDimBadge(label, value) {
   const hasVal = value !== null && value !== undefined && value !== '';
-  const displayVal = hasVal ? (typeof value === 'number' ? fmtNum(value) : value) : '—';
-  return `
-    <div class="dim-badge${hasVal ? '' : ' no-data'}">
-      <span class="dim-label">${label}</span>
-      <span class="dim-value">${displayVal}</span>
-    </div>`;
+  return `<div class="dim-badge${hasVal ? '' : ' no-data'}"><span class="dim-label">${label}</span><span class="dim-value">${hasVal ? (typeof value === 'number' ? fmtNum(value) : value) : '—'}</span></div>`;
 }
 
 function buildMetaItem(label, value) {
   const hasVal = value && value !== '';
-  return `
-    <div class="meta-item${hasVal ? '' : ' no-data'}">
-      <span class="meta-label">${label}</span>
-      <span class="meta-value">${hasVal ? escHtml(value) : '—'}</span>
-    </div>`;
+  return `<div class="meta-item${hasVal ? '' : ' no-data'}"><span class="meta-label">${label}</span><span class="meta-value">${hasVal ? escHtml(value) : '—'}</span></div>`;
 }
 
-// ─── Calc Logic ──────────────────────────────────────────────────────────────
-/**
- * Volume in m³: (X/100) × (Y/100) × (Z/100) × qty
- * Weight in kg:  peso_por_cx × qty
- */
 function calcItem(p, qty) {
   const hasDims = p.x !== null && p.y !== null && p.z !== null;
-  const vol = hasDims ? (p.x / 100) * (p.y / 100) * (p.z / 100) * qty : 0;
-  const wt  = p.peso !== null ? p.peso * qty : 0;
-  return { vol, wt };
+  return { vol: hasDims ? (p.x / 100) * (p.y / 100) * (p.z / 100) * qty : 0, wt: p.peso !== null ? p.peso * qty : 0 };
 }
 
-// ─── Cart Operations ─────────────────────────────────────────────────────────
-function removeItem(id) {
-  cartItems = cartItems.filter(i => i.id !== id);
-  renderCart();
-  updateTotals();
-}
+function removeItem(id) { cartItems = cartItems.filter(i => i.id !== id); renderCart(); updateTotals(); }
 
 function updateItemQty(id, qty) {
-  const item = cartItems.find(i => i.id === id);
-  if (!item) return;
+  const item = cartItems.find(i => i.id === id); if (!item) return;
   item.qty = qty;
-
   const { vol, wt } = calcItem(item.product, qty);
-  const hasDims = item.product.x !== null && item.product.y !== null && item.product.z !== null;
-  const hasPeso = item.product.peso !== null;
-
-  const volEl = document.querySelector(`[data-vol="${id}"]`);
-  const wtEl  = document.querySelector(`[data-wt="${id}"]`);
-  if (volEl) volEl.textContent = hasDims ? fmtVol(vol) : '—';
-  if (wtEl)  wtEl.textContent  = hasPeso ? fmtPeso(wt)  : '—';
-
+  const vEl = document.querySelector(`[data-vol="${id}"]`), wEl = document.querySelector(`[data-wt="${id}"]`);
+  if (vEl) vEl.textContent = item.product.x !== null ? fmtVol(vol) : '—';
+  if (wEl) wEl.textContent = item.product.peso !== null ? fmtPeso(wt) : '—';
   updateTotals();
 }
 
 function updateTotals() {
-  let totalVol  = 0;
-  let totalWt   = 0;
-  let totalBxs  = 0;
-
-  for (const item of cartItems) {
-    const { vol, wt } = calcItem(item.product, item.qty);
-    totalVol += vol;
-    totalWt  += wt;
-    totalBxs += item.qty;
-  }
-
-  totalItems.textContent  = cartItems.length;
-  totalBoxes.textContent  = totalBxs.toLocaleString('pt-BR');
-  totalVolume.textContent = fmtVol(totalVol);
-  totalWeight.textContent = fmtPeso(totalWt);
+  let v=0, w=0, b=0; for (const i of cartItems) { const { vol, wt } = calcItem(i.product, i.qty); v+=vol; w+=wt; b+=i.qty; }
+  totalItems.textContent = cartItems.length; totalBoxes.textContent = b.toLocaleString('pt-BR');
+  totalVolume.textContent = fmtVol(v); totalWeight.textContent = fmtPeso(w);
 }
 
-clearAllBtn.addEventListener('click', () => {
-  cartItems = [];
-  renderCart();
-  updateTotals();
-  showToast('Lista limpa.', 'success');
-});
+clearAllBtn.addEventListener('click', () => { cartItems = []; renderCart(); updateTotals(); showToast('Lista limpa.', 'success'); });
 
-// ─── Print Logic ─────────────────────────────────────────────────────────────
 printBtn.addEventListener('click', () => {
-  if (cartItems.length === 0) {
-    showToast('Adicione produtos antes de imprimir.', 'error');
-    return;
-  }
-
-  // Update print header info
+  if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
   printOrderNum.textContent = orderNumInput.value.trim() || '—';
   printCustomerName.textContent = customerNameInput.value.trim() || '—';
-  
   const now = new Date();
-  const dateStr = now.toLocaleDateString('pt-BR');
-  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  printTimestamp.textContent = `${dateStr} às ${timeStr}`;
-
+  printTimestamp.textContent = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   window.print();
 });
 
-// ─── Formatting ──────────────────────────────────────────────────────────────
-function fmtNum(n) {
-  if (n == null) return '—';
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtVol(v) {
-  return `${v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m³`;
-}
-function fmtPeso(w) {
-  return `${w.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
-}
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ─── Order Management ───────────────────────────────────────────────────────
-const SAVED_ORDERS_KEY = 'cxb-saved-orders';
-
-function saveOrder() {
+// ─── Order Management & Supabase Sync ───────────────────────────────────────
+async function saveOrder() {
   const orderNum = orderNumInput.value.trim();
   const customerName = customerNameInput.value.trim();
-
-  if (cartItems.length === 0) {
-    showToast('Adicione produtos antes de salvar.', 'error');
-    return;
-  }
+  if (cartItems.length === 0) { showToast('Adicione produtos antes de salvar.', 'error'); return; }
 
   const savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
-  
   const newOrder = {
     id: Date.now(),
     orderNum: orderNum || 'Sem Número',
     customerName: customerName || 'Sem Cliente',
-    items: JSON.parse(JSON.stringify(cartItems)), // clone
+    items: JSON.parse(JSON.stringify(cartItems)),
     timestamp: new Date().toISOString()
   };
 
-  savedOrders.unshift(newOrder); // Add to beginning
+  savedOrders.unshift(newOrder);
   localStorage.setItem(SAVED_ORDERS_KEY, JSON.stringify(savedOrders));
-
   renderSavedOrders();
-  showToast('Pedido salvo com sucesso!', 'success');
+  showToast('Pedido salvo localmente!', 'success');
+
+  // Supabase Sync
+  if (supabase) {
+    setSyncStatus('syncing');
+    try {
+      const { error } = await supabase.from('cxb_orders').insert([{
+        id: newOrder.id,
+        order_num: newOrder.orderNum,
+        customer_name: newOrder.customerName,
+        items: newOrder.items,
+        created_at: newOrder.timestamp
+      }]);
+      if (error) throw error;
+      setSyncStatus('synced');
+    } catch (err) {
+      console.error('Supabase sync error:', err);
+      setSyncStatus('error');
+    }
+  }
 }
 
-function renderSavedOrders() {
-  const savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
-  const hasOrders = savedOrders.length > 0;
+async function renderSavedOrders() {
+  const localOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
+  let displayOrders = localOrders;
 
+  // If supabase is ready, try to fetch and merge
+  if (supabase && localOrders.length === 0) {
+     setSyncStatus('syncing');
+     try {
+       const { data, error } = await supabase.from('cxb_orders').select('*').order('created_at', { ascending: false });
+       if (error) throw error;
+       if (data && data.length > 0) {
+         displayOrders = data.map(d => ({
+           id: d.id,
+           orderNum: d.order_num,
+           customerName: d.customer_name,
+           items: d.items,
+           timestamp: d.created_at
+         }));
+         localStorage.setItem(SAVED_ORDERS_KEY, JSON.stringify(displayOrders));
+       }
+       setSyncStatus('synced');
+     } catch (err) {
+       console.error('Supabase fetch error:', err);
+       setSyncStatus('error');
+     }
+  }
+
+  const hasOrders = displayOrders.length > 0;
   savedOrdersSection.hidden = !hasOrders;
-  savedOrdersCount.textContent = savedOrders.length;
+  savedOrdersCount.textContent = displayOrders.length;
   savedOrdersList.innerHTML = '';
 
-  savedOrders.forEach(order => {
-    const date = new Date(order.timestamp).toLocaleDateString('pt-BR');
-    const time = new Date(order.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    
+  displayOrders.forEach(order => {
+    const d = new Date(order.timestamp);
+    const dateStr = d.toLocaleDateString('pt-BR');
+    const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const card = document.createElement('div');
     card.className = 'saved-order-card';
     card.innerHTML = `
@@ -517,29 +402,14 @@ function renderSavedOrders() {
         <div class="saved-order-title">Pedido: ${escHtml(order.orderNum)}</div>
         <div class="saved-order-client">Cliente: ${escHtml(order.customerName)}</div>
       </div>
-      <div class="saved-order-meta">
-        <span>${date} às ${time}</span>
-        <span>${order.items.length} itens</span>
-      </div>
+      <div class="saved-order-meta"><span>${dateStr} às ${timeStr}</span><span>${order.items.length} itens</span></div>
       <div class="saved-order-actions">
-        <button class="btn-small btn-small-open" data-open-id="${order.id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          Abrir
-        </button>
-        <button class="btn-small btn-small-delete" data-delete-id="${order.id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-          </svg>
-          Deletar
-        </button>
+        <button class="btn-small btn-small-open" data-open-id="${order.id}">Abrir</button>
+        <button class="btn-small btn-small-delete" data-delete-id="${order.id}">Deletar</button>
       </div>
     `;
-
     card.querySelector(`[data-open-id="${order.id}"]`).addEventListener('click', () => openOrder(order.id));
     card.querySelector(`[data-delete-id="${order.id}"]`).addEventListener('click', () => deleteOrder(order.id));
-
     savedOrdersList.appendChild(card);
   });
 }
@@ -547,49 +417,53 @@ function renderSavedOrders() {
 function openOrder(id) {
   const savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
   const order = savedOrders.find(o => o.id === id);
-
-  if (!order) {
-    showToast('Pedido não encontrado.', 'error');
-    return;
-  }
-
-  // Load into current state
+  if (!order) { showToast('Pedido não encontrado.', 'error'); return; }
   cartItems = JSON.parse(JSON.stringify(order.items));
   orderNumInput.value = order.orderNum === 'Sem Número' ? '' : order.orderNum;
   customerNameInput.value = order.customerName === 'Sem Cliente' ? '' : order.customerName;
-
-  // Re-render everything
-  renderCart();
-  updateTotals();
-  
-  // Scroll to top or search section
+  renderCart(); updateTotals();
   document.querySelector('.search-section').scrollIntoView({ behavior: 'smooth' });
-  
   showToast(`Pedido "${order.orderNum}" carregado!`, 'success');
 }
 
-function deleteOrder(id) {
-  if (!confirm('Tem certeza que deseja excluir este pedido salvo?')) return;
-
+async function deleteOrder(id) {
+  if (!confirm('Excluir este pedido?')) return;
   const savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
   const filtered = savedOrders.filter(o => o.id !== id);
   localStorage.setItem(SAVED_ORDERS_KEY, JSON.stringify(filtered));
-
   renderSavedOrders();
-  showToast('Pedido removido.', 'success');
+  showToast('Pedido removido localmente.', 'success');
+
+  if (supabase) {
+    try {
+      await supabase.from('cxb_orders').delete().eq('id', id);
+    } catch (err) {
+      console.error('Supabase delete error:', err);
+    }
+  }
+}
+
+function setSyncStatus(state) {
+  if (!syncStatus) return;
+  syncStatus.className = `sync-status ${state}`;
 }
 
 saveOrderBtn.addEventListener('click', saveOrder);
 
-// ─── Toast ───────────────────────────────────────────────────────────────────
+// ─── Formatting & Utils ──────────────────────────────────────────────────────
+function fmtNum(n) { return n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtVol(v) { return `${v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m³`; }
+function fmtPeso(w) { return `${w.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`; }
+function escHtml(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
 let toastTimer;
 function showToast(msg, type = '') {
   clearTimeout(toastTimer);
-  toast.textContent = msg;
-  toast.className = `toast ${type} show`;
+  toast.textContent = msg; toast.className = `toast ${type} show`;
   toastTimer = setTimeout(() => { toast.className = `toast ${type}`; }, 3000);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
+initSupabase();
 loadData();
 renderSavedOrders();

@@ -753,6 +753,7 @@ input::placeholder { color: var(--text-muted); }
 .accent-wt { border-color: rgba(255, 140, 66, 0.3); }
 .accent-wt .total-value { color: var(--orange); }
 
+<<<<<<< HEAD
 .btn-success {
   display: inline-flex;
   align-items: center;
@@ -813,6 +814,38 @@ input::placeholder { color: var(--text-muted); }
   font-weight: 700;
   padding: 2px 10px;
   border-radius: 20px;
+}
+
+.header-compact-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.sync-status.syncing {
+  color: var(--orange);
+  animation: pulse 1.5s infinite;
+}
+
+.sync-status.synced {
+  color: var(--teal);
+}
+
+.sync-status.error {
+  color: var(--red);
+}
+
+.sync-status svg {
+  width: 18px;
+  height: 18px;
 }
 
 .saved-orders-list {
@@ -907,6 +940,8 @@ input::placeholder { color: var(--text-muted); }
   color: white;
 }
 
+=======
+>>>>>>> ae63ea9b584a77b5502a671e25caa0eec7a35a96
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;

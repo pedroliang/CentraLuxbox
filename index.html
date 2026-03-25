@@ -215,7 +215,6 @@
         </button>
       </div>
     </section>
-
     <!-- Saved Orders Section -->
     <section class="saved-orders-section glass-card" id="savedOrdersSection" hidden>
       <div class="section-header-compact">
@@ -225,7 +224,16 @@
           </svg>
           Pedidos Salvos
         </h2>
-        <span id="savedOrdersCount" class="badge">0</span>
+        <div class="header-compact-actions">
+          <span id="syncStatus" class="sync-status" title="Sincronização com a nuvem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.5 19a3.5 3.5 0 0 0 0-7h-.79A4.5 4.5 0 0 0 8.5 8a4.5 4.5 0 0 0-4.43 3.61 3 3 0 0 0 .43 5.39 3 3 0 0 0 .43-5.39A4.5 4.5 0 0 0 13 3.5 4.5 4.5 0 0 0 8.5 8a4.5 4.5 0 0 0 .43 1.61 3 3 0 0 0-.43 5.39z"/>
+              <!-- Fixed SVG path from previous try -->
+              <path d="M17.5 19a3.5 3.5 0 0 0 0-7h-.79A4.5 4.5 0 0 0 8.5 8a4.5 4.5 0 0 0-4.43 3.61 3 3 0 0 0 .43 5.39 3 3 0 0 0 3.5 2h9.5z"/>
+            </svg>
+          </span>
+          <span id="savedOrdersCount" class="badge">0</span>
+        </div>
       </div>
       <div id="savedOrdersList" class="saved-orders-list">
         <!-- Saved order items will appear here -->
@@ -239,6 +247,7 @@
 
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
