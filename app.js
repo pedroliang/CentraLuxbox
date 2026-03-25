@@ -35,6 +35,8 @@ const statusText    = dataStatus.querySelector('.status-text');
 const searchForm    = document.getElementById('searchForm');
 const codeInput     = document.getElementById('codeInput');
 const qtyInput      = document.getElementById('qtyInput');
+const orderNumInput = document.getElementById('orderNumInput');
+const customerNameInput = document.getElementById('customerNameInput');
 const codeError     = document.getElementById('codeError');
 const productPreview = document.getElementById('productPreview');
 const emptyState    = document.getElementById('emptyState');
@@ -44,8 +46,13 @@ const totalItems    = document.getElementById('totalItems');
 const totalBoxes    = document.getElementById('totalBoxes');
 const totalVolume   = document.getElementById('totalVolume');
 const totalWeight   = document.getElementById('totalWeight');
+const printBtn      = document.getElementById('printBtn');
 const clearAllBtn   = document.getElementById('clearAllBtn');
 const toast         = document.getElementById('toast');
+const printHeader   = document.getElementById('printHeader');
+const printOrderNum = document.getElementById('printOrderNum');
+const printCustomerName = document.getElementById('printCustomerName');
+const printTimestamp = document.getElementById('printTimestamp');
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
 (function initTheme() {
@@ -331,8 +338,15 @@ function buildProductCard(item) {
   card.querySelector('.calc-qty-input').addEventListener('input', (e) => {
     const newQty = Math.max(1, parseInt(e.target.value, 10) || 1);
     e.target.value = newQty;
+    
+    // Update data-qty for print CSS
+    e.target.closest('.calc-qty-wrapper').setAttribute('data-qty', newQty);
+    
     updateItemQty(id, newQty);
   });
+
+  // Initial set for data-qty
+  card.querySelector('.calc-qty-wrapper').setAttribute('data-qty', qty);
 
   return card;
 }
@@ -415,6 +429,25 @@ clearAllBtn.addEventListener('click', () => {
   renderCart();
   updateTotals();
   showToast('Lista limpa.', 'success');
+});
+
+// ─── Print Logic ─────────────────────────────────────────────────────────────
+printBtn.addEventListener('click', () => {
+  if (cartItems.length === 0) {
+    showToast('Adicione produtos antes de imprimir.', 'error');
+    return;
+  }
+
+  // Update print header info
+  printOrderNum.textContent = orderNumInput.value.trim() || '—';
+  printCustomerName.textContent = customerNameInput.value.trim() || '—';
+  
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR');
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  printTimestamp.textContent = `${dateStr} às ${timeStr}`;
+
+  window.print();
 });
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
