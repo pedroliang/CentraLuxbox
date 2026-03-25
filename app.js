@@ -452,6 +452,7 @@ printBtn.addEventListener('click', () => {
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
 function fmtNum(n) {
+  if (n == null) return '—';
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtVol(v) {
