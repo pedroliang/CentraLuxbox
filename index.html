@@ -11,6 +11,16 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Print Header (Hidden on screen) -->
+  <div id="printHeader" class="print-only">
+    <div class="print-brand">CentraLux</div>
+    <div class="print-meta">
+      <div class="print-meta-item"><span>Pedido:</span> <strong id="printOrderNum"></strong></div>
+      <div class="print-meta-item"><span>Cliente:</span> <strong id="printCustomerName"></strong></div>
+      <div class="print-meta-item"><span>Expedição:</span> <strong id="printTimestamp"></strong></div>
+    </div>
+  </div>
+
   <!-- Background blobs -->
   <div class="bg-blobs" aria-hidden="true">
     <div class="blob blob-1"></div>
@@ -59,11 +69,35 @@
   </header>
 
   <main>
-    <!-- Search Section -->
+    <!-- Order & Search Section -->
     <section class="search-section" aria-label="Adicionar produto">
       <div class="section-header">
         <h1>Calcular Cubagem</h1>
         <p class="section-desc">Insira o código do produto e a quantidade de caixas para calcular a cubagem.</p>
+      </div>
+
+      <!-- Order Info Card -->
+      <div class="order-card glass-card">
+        <div class="order-form">
+          <div class="form-group">
+            <label for="orderNumInput">Número do Pedido</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <input type="text" id="orderNumInput" placeholder="Ex: 12345" autocomplete="off" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="customerNameInput">Nome do Cliente</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" id="customerNameInput" placeholder="Ex: João Silva" autocomplete="off" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="search-card glass-card">
@@ -159,13 +193,21 @@
           <span id="totalWeight" class="total-value">0,00 kg</span>
         </div>
       </div>
-      <button id="clearAllBtn" class="btn-danger">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-        </svg>
-        Limpar Tudo
-      </button>
+      <div class="totals-actions">
+        <button id="printBtn" class="btn-primary btn-print">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Gerar PDF / Imprimir
+        </button>
+        <button id="clearAllBtn" class="btn-danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+          Limpar Tudo
+        </button>
+      </div>
     </section>
   </main>
 
