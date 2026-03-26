@@ -7,9 +7,9 @@
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const SHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/gviz/tq?tqx=out:csv&gid=0';
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vT2hJMYGl8D5vX8mRBk92twpiDWTu8pdmmpNuqTdZ7lyCSfFnGjelYlfGxXx_nTrAC-iBcPuVtDffQ8/pub?gid=0&single=true&output=csv';
 const SHEET_URL_ALT = 
-  'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/export?format=csv&gid=0';
+  'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/gviz/tq?tqx=out:csv&gid=0';
 
 // Supabase Config (Extracted from environment)
 const SUPABASE_URL = 'https://fruwdnbysjpaccregbnj.supabase.co';
