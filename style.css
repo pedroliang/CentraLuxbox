@@ -626,14 +626,14 @@ input::placeholder { color: var(--text-muted); }
 
 /* Calculation row */
 .card-calc {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
 }
 
 @media (max-width: 560px) {
@@ -662,26 +662,25 @@ input::placeholder { color: var(--text-muted); }
 
 .calc-result {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   flex: 1;
-  gap: 2px;
 }
 .calc-result-label {
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
 .calc-vol {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--teal);
-  letter-spacing: -0.01em;
 }
 .calc-wt {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--orange);
 }
@@ -1052,7 +1051,7 @@ footer {
   
   .glass-card, .product-card {
     background: #fff !important;
-    border: 1px solid #ddd !important;
+    border: 1.5px solid #666 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
     color: #000 !important;
@@ -1063,16 +1062,19 @@ footer {
   .product-card::before { display: none; }
   .card-code { border-color: #ccc; color: #000; background: #eee; }
   .card-name { font-size: 1.1rem; }
-  .dim-badge, .meta-item, .card-calc { background: #f9f9f9 !important; border: 1px solid #eee !important; color: #000 !important; }
-  .dim-value, .meta-value, .calc-vol, .calc-wt { color: #000 !important; }
+  .card-dims { margin-bottom: 10px; display: inline-flex; }
+  .card-calc { display: inline-flex; margin-bottom: 10px; margin-left: 10px; vertical-align: top; padding: 10px !important; }
+  .calc-result { display: flex; flex-direction: column; gap: 2px; }
+  .dim-badge, .meta-item, .card-calc { background: #f9f9f9 !important; border: 1.2px solid #999 !important; color: #000 !important; }
+  .dim-value, .meta-value, .calc-vol, .calc-wt { color: #000 !important; font-size: 0.9rem !important; }
   
-  .totals-panel { margin-top: 30px; border-color: #ddd !important; }
-  .total-card { background: #f9f9f9 !important; border: 1px solid #eee !important; }
+  .totals-panel { margin-top: 30px; border-color: #666 !important; }
+  .total-card { background: #f9f9f9 !important; border: 1.2px solid #999 !important; }
   .total-value { font-size: 1.2rem; color: #000 !important; }
 
   /* Print Header */
   .print-only { display: block !important; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
-  .print-brand { font-size: 2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .print-brand { font-size: 2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; color: #0056b3 !important; }
   .print-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
   .print-meta-item { font-size: 0.9rem; }
   .print-meta-item span { display: block; font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: #666; }

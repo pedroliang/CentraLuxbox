@@ -270,10 +270,6 @@
         buildDimBadge('X (cm)', p.x) + ' ' + buildDimBadge('Y (cm)', p.y) + ' ' + buildDimBadge('Z (cm)', p.z) +
         buildDimBadge('Peso/cx', p.peso !== null ? fmtNum(p.peso) + ' kg' : null) +
       '</div>' +
-      '<div class="card-meta">' +
-        buildMetaItem('Lote', p.lote) + ' ' + buildMetaItem('GTIN-14', p.gtin) +
-      '</div>' +
-      (!hasDims ? '<div class="no-cubagem-warn">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '') +
       '<div class="card-calc">' +
         '<div class="calc-qty-wrapper" data-qty="' + qty + '">' +
           '<span class="calc-qty-label">Caixas:</span>' +
@@ -284,7 +280,11 @@
           '<span class="calc-vol" data-vol="' + id + '">' + (hasDims ? fmtVol(result.vol) : '\u2014') + '</span>' +
           '<span class="calc-wt" data-wt="' + id + '">' + (hasPeso ? fmtPeso(result.wt) : '\u2014') + '</span>' +
         '</div>' +
-      '</div>';
+      '</div>' +
+      '<div class="card-meta">' +
+        buildMetaItem('Lote', p.lote) + ' ' + buildMetaItem('GTIN-14', p.gtin) +
+      '</div>' +
+      (!hasDims ? '<div class="no-cubagem-warn">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '');
 
     card.querySelector('[data-remove-id]').addEventListener('click', function() { removeItem(id); });
     card.querySelector('.calc-qty-input').addEventListener('input', function(e) {
