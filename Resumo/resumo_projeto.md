@@ -13,14 +13,15 @@ O **CentraLu Xbox** é um sistema web moderno para consulta de estoque e cálcul
 13. **Exportação Excel (NOVO):** Download direto do pedido em CSV otimizado para Excel (com BOM UTF-8 e separadores BR).
 14. **Gerenciamento de Pedidos:**
     *   **Salvar Pedido:** Identificado por número do pedido e nome do cliente.
-    *   **Sincronização Cloud (MELHORADA):** Pedidos locais e do Supabase são mesclados bidirecionalmente.
-    *   **Status do Pedido:** Sistema visual de status (ex: Pendente).
-    *   **Resiliência de Dados:** Novo sistema de carregamento com múltiplos proxies e timeouts para evitar falhas de conexão.
+    *   **Sincronização Cloud:** Pedidos locais e do Supabase são mesclados bidirecionalmente.
+    *   **Resiliência de Dados (CRÍTICO):** Uso de **JSONP (Google Visualization API)** para carregamento instantâneo sem erros de CORS, com fallback automático para CSV publicado.
+    *   **Estabilidade do Código:** `app.js` totalmente reescrito com proteção `DOMContentLoaded`, IIFE e tratamento de erros para evitar crashes silenciosos.
 
 ## 📂 Estrutura de Arquivos
-- `index.html`: Base da aplicação, modal de ajuda e área de pedidos salvos.
+- `index.html`: Base da aplicação, scripts com `defer` e charset UTF-8 forçado.
 - `style.css`: Design System (Glassmorphism), temas Dark/Light e regras `@media print`.
-- `app.js`: Lógica de busca, cálculos, persistência local e sincronização Supabase.
+- `app.js`: Reescrito do zero (Mar/2026) para máxima estabilidade e compatibilidade.
+- `server.js`: Servidor local em Node.js configurado para servir arquivos com encoding UTF-8.
 
 ## 📊 Fonte de Dados (Google Sheets)
 - **URL:** [Clique aqui](https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/edit?gid=0)
@@ -34,8 +35,7 @@ O **CentraLu Xbox** é um sistema web moderno para consulta de estoque e cálcul
 
 ## 🔗 Repositório GitHub
 - **URL:** [https://github.com/pedroliang/CentraLuxbox](https://github.com/pedroliang/CentraLuxbox)
-- **Status:** Sincronizado e Pushed (26/03/2026).
-- **Token Utilizado:** `ghp_...ZV` (fornecido pelo usuário).
+- **Status:** Produção Estável (26/03/2026).
 
 ---
-*Atualizado em: 25/03/2026*
+*Atualizado em: 26/03/2026*
