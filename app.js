@@ -91,52 +91,101 @@ function initSupabase() {
   }
 }
 
-// ─── CSV Loader ─────────────────────────────────────────────────────────────
-// Helper for timeout
-const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+// ─── CSV Loader via Google JSONP (bypasses CORS natively) ───────────────────
+const SHEET_ID = '1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM';
+const SHEET_GID = '0';
+
+// Strategy 1: JSONP using Google Visualization API (best – no CORS needed)
+function loadViaJSONP() {
+  return new Promise((resolve, reject) => {
+    const callbackName = '__gvizCallback_' + Date.now();
+    const timeout = setTimeout(() => {
+      delete window[callbackName];
+      script.remove();
+      reject(new Error('JSONP timeout'));
+    }, 12000);
+
+    window[callbackName] = (data) => {
+      clearTimeout(timeout);
+      delete window[callbackName];
+      script.remove();
+      try {
+        const table = data.table;
+        const cols = table.cols.length;
+        const rows = table.rows.map(r =>
+          r.c.map(cell => (cell && cell.v != null) ? String(cell.v) : '')
+        );
+        resolve(rows); // already parsed, no header to skip for data rows
+      } catch (e) {
+        reject(e);
+      }
+    };
+
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tq=select%20*&gid=${SHEET_GID}&tqx=out:json&callback=${callbackName}`;
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[callbackName];
+      reject(new Error('JSONP script error'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// Strategy 2: fetch the published CSV directly (works in some browsers/networks)
+async function loadViaPublishedCSV() {
+  const url = SHEET_URL;
+  const res = await Promise.race([
+    fetch(url, { cache: 'no-store' }),
+    new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 8000))
   ]);
-};
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  // Parse and skip 3 header rows
+  const rows = parseCSVRows(text).slice(3);
+  return rows;
+}
 
 async function loadData() {
   setStatus('loading', 'Carregando dados...');
   try {
-    let csvText;
-    const sources = [SHEET_URL, SHEET_URL_ALT];
-    const proxies = [
-      url => url, 
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-    ];
+    let rows;
 
-    let lastError;
-    for (const url of sources) {
-      if (csvText) break;
-      for (const getUrl of proxies) {
-        try {
-          const res = await fetchWithTimeout(getUrl(url), { cache: 'no-store' }, 8000);
-          if (res.ok) {
-            csvText = await res.text();
-            // Auto-detect header rows: if it starts with "Cod.", then it's 1 row (gviz)
-            // if it starts with "PRINCIPAL", it's 3 rows (export)
-            const firstChars = csvText.substring(0, 20);
-            const headerRowsUsed = firstChars.includes('PRINCIPAL') ? 3 : 1;
-            parseCSV(csvText, headerRowsUsed);
-            break;
-          }
-        } catch (e) {
-          lastError = e;
-          console.warn(`Falha para ${getUrl(url)}:`, e);
-        }
+    // Try JSONP first (fastest, no-CORS needed)
+    try {
+      rows = await loadViaJSONP();
+      // JSONP data has labels in first row (col headers), skip it
+      if (rows.length > 0 && rows[0][0] && isNaN(+rows[0][0])) {
+        rows = rows.slice(1);
+      }
+    } catch (e) {
+      console.warn('JSONP falhou, tentando CSV publicado:', e);
+      // Fallback: direct fetch of published CSV
+      rows = await loadViaPublishedCSV();
+    }
+
+    // Build product database
+    productDB.clear();
+    for (const row of rows) {
+      const code = (row[COL.CODE] || '').trim();
+      if (!code || isNaN(+code)) continue;
+      if (!productDB.has(code)) {
+        productDB.set(code, {
+          code,
+          desc:  (row[COL.DESC] || '').trim(),
+          x:     parseNum(row[COL.X_CM]),
+          y:     parseNum(row[COL.Y_CM]),
+          z:     parseNum(row[COL.Z_CM]),
+          peso:  parsePeso(row[COL.PESO]),
+          lote:  (row[COL.LOTE] || '').trim(),
+          gtin:  (row[COL.GTIN] || '').trim(),
+        });
       }
     }
 
-    if (!csvText) throw lastError || new Error('Falha em todas as tentativas');
-
     const count = productDB.size;
+    if (count === 0) throw new Error('Nenhum produto encontrado');
     setStatus('ready', `${count} produtos carregados`);
     showToast(`Dados carregados: ${count} produtos`, 'success');
   } catch (err) {
