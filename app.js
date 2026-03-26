@@ -81,13 +81,19 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('cxb-theme', next);
 });
 
-// ─── Supabase Initialize ────────────────────────────────────────────────────
+// ─── Supabase Initialize ────────────────────────────────────────────────────────
 function initSupabase() {
-  if (typeof window.supabase !== 'undefined') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('Supabase initialized');
-  } else {
-    console.warn('Supabase SDK not found');
+  try {
+    // The CDN script exposes window.supabase with createClient
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('Supabase initialized successfully');
+    } else {
+      console.warn('Supabase SDK not available or createClient not found');
+    }
+  } catch (err) {
+    console.error('Supabase initialization error:', err);
+    supabase = null;
   }
 }
 
@@ -615,7 +621,20 @@ function showToast(msg, type = '') {
   toastTimer = setTimeout(() => { toast.className = `toast ${type}`; }, 3000);
 }
 
-// ─── Init ────────────────────────────────────────────────────────────────────
-initSupabase();
-loadData();
-renderSavedOrders();
+// ─── Init ──────────────────────────────────────────────────────────────────────
+console.log('[CXB] Starting initialization...');
+try {
+  initSupabase();
+} catch(e) { console.error('[CXB] Supabase init failed:', e); }
+
+console.log('[CXB] Calling loadData...');
+try {
+  loadData();
+} catch(e) { console.error('[CXB] loadData failed:', e); }
+
+console.log('[CXB] Calling renderSavedOrders...');
+try {
+  renderSavedOrders();
+} catch(e) { console.error('[CXB] renderSavedOrders failed:', e); }
+
+console.log('[CXB] Init complete');
