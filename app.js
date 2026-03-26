@@ -7,6 +7,8 @@
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/gviz/tq?tqx=out:csv&gid=0';
+const SHEET_URL_ALT = 
   'https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/export?format=csv&gid=0';
 
 // Supabase Config (Extracted from environment)
@@ -102,29 +104,38 @@ async function loadData() {
   setStatus('loading', 'Carregando dados...');
   try {
     let csvText;
+    const sources = [SHEET_URL, SHEET_URL_ALT];
     const proxies = [
-      url => url, // Direto
+      url => url, 
       url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
     ];
 
     let lastError;
-    for (const getUrl of proxies) {
-      try {
-        const res = await fetchWithTimeout(getUrl(SHEET_URL), { cache: 'no-store' }, 8000);
-        if (res.ok) {
-          csvText = await res.text();
-          break;
+    for (const url of sources) {
+      if (csvText) break;
+      for (const getUrl of proxies) {
+        try {
+          const res = await fetchWithTimeout(getUrl(url), { cache: 'no-store' }, 8000);
+          if (res.ok) {
+            csvText = await res.text();
+            // Auto-detect header rows: if it starts with "Cod.", then it's 1 row (gviz)
+            // if it starts with "PRINCIPAL", it's 3 rows (export)
+            const firstChars = csvText.substring(0, 20);
+            const headerRowsUsed = firstChars.includes('PRINCIPAL') ? 3 : 1;
+            parseCSV(csvText, headerRowsUsed);
+            break;
+          }
+        } catch (e) {
+          lastError = e;
+          console.warn(`Falha para ${getUrl(url)}:`, e);
         }
-      } catch (e) {
-        lastError = e;
-        console.warn(`Tentativa falhou para ${getUrl(SHEET_URL)}:`, e);
       }
     }
 
-    if (!csvText) throw lastError || new Error('Falha em todas as tentativas de obtenção de dados');
+    if (!csvText) throw lastError || new Error('Falha em todas as tentativas');
 
-    parseCSV(csvText);
     const count = productDB.size;
     setStatus('ready', `${count} produtos carregados`);
     showToast(`Dados carregados: ${count} produtos`, 'success');
@@ -142,9 +153,9 @@ function setStatus(type, text) {
 }
 
 // ─── CSV Parser ─────────────────────────────────────────────────────────────
-function parseCSV(text) {
+function parseCSV(text, headerRows = 3) {
   const rows = parseCSVRows(text);
-  const dataRows = rows.slice(HEADER_ROWS);
+  const dataRows = rows.slice(headerRows);
 
   productDB.clear();
   for (const row of dataRows) {

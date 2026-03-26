@@ -1,4 +1,4 @@
-# Resumo do Projeto: CentraLu Xbox (Ref: 2026-03-25)
+# Resumo do Projeto: CentraLu Xbox (Ref: 2026-03-26)
 
 Este documento serve como um guia de referência rápida sobre o que foi desenvolvido, permitindo que futuras sessões de IA ou outros desenvolvedores entendam o estado atual do projeto.
 
@@ -6,14 +6,16 @@ Este documento serve como um guia de referência rápida sobre o que foi desenvo
 O **CentraLu Xbox** é um sistema web moderno para consulta de estoque e cálculo de cubagem para a CentraLu. É 100% frontend (HTML/CSS/JS) e consome dados de uma planilha do Google Sheets.
 
 ## 🚀 Funcionalidades Principais
-1.  **Busca por Código:** Consulta instantânea de produtos (Coluna A da planilha).
-2.  **Cálculo de Cubagem:** Volume (m³) e peso (kg) automáticos baseado na quantidade de caixas.
-3.  **Lista de Produtos:** Carrinho dinâmico com totais consolidados.
-4.  **Impressão/PDF:** Layout otimizado com marca CentraLux e metadados de expedição.
-5.  **Gerenciamento de Pedidos (NOVO):**
+9.  **Busca Inteligente:** Consulta de produtos por código ou parte da descrição.
+10. **Cálculo de Cubagem:** Volume (m³) e peso (kg) automáticos baseado na quantidade de caixas.
+11. **Lista de Produtos:** Carrinho dinâmico com totais consolidados.
+12. **Impressão/PDF:** Layout otimizado com marca CentraLux e metadados de expedição.
+13. **Exportação Excel (NOVO):** Download direto do pedido em CSV otimizado para Excel (com BOM UTF-8 e separadores BR).
+14. **Gerenciamento de Pedidos:**
     *   **Salvar Pedido:** Identificado por número do pedido e nome do cliente.
-    *   **Persistência:** Salva localmente (`localStorage`) e na nuvem (**Supabase**).
-    *   **Sincronização Cloud:** Pedidos são centralizados no Supabase para acesso em múltiplos dispositivos.
+    *   **Sincronização Cloud (MELHORADA):** Pedidos locais e do Supabase são mesclados bidirecionalmente.
+    *   **Status do Pedido:** Sistema visual de status (ex: Pendente).
+    *   **Resiliência de Dados:** Novo sistema de carregamento com múltiplos proxies e timeouts para evitar falhas de conexão.
 
 ## 📂 Estrutura de Arquivos
 - `index.html`: Base da aplicação, modal de ajuda e área de pedidos salvos.
@@ -32,7 +34,7 @@ O **CentraLu Xbox** é um sistema web moderno para consulta de estoque e cálcul
 
 ## 🔗 Repositório GitHub
 - **URL:** [https://github.com/pedroliang/CentraLuxbox](https://github.com/pedroliang/CentraLuxbox)
-- **Status:** Sincronizado e com Git inicializado.
+- **Status:** Sincronizado e Pushed (26/03/2026).
 - **Token Utilizado:** `ghp_...ZV` (fornecido pelo usuário).
 
 ---
