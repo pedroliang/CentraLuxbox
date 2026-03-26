@@ -64,6 +64,7 @@ const savedOrdersSection = document.getElementById('savedOrdersSection');
 const savedOrdersCount   = document.getElementById('savedOrdersCount');
 const savedOrdersList    = document.getElementById('savedOrdersList');
 const syncStatus         = document.getElementById('syncStatus');
+const exportExcelBtn     = document.getElementById('exportExcelBtn');
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
 (function initTheme() {
@@ -89,20 +90,39 @@ function initSupabase() {
 }
 
 // ─── CSV Loader ─────────────────────────────────────────────────────────────
+// Helper for timeout
+const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+  ]);
+};
+
 async function loadData() {
   setStatus('loading', 'Carregando dados...');
   try {
     let csvText;
-    try {
-      const res = await fetch(SHEET_URL, { cache: 'no-store' });
-      if (!res.ok) throw new Error('direct fetch failed');
-      csvText = await res.text();
-    } catch {
-      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(SHEET_URL)}`;
-      const res = await fetch(proxy);
-      if (!res.ok) throw new Error('proxy fetch failed');
-      csvText = await res.text();
+    const proxies = [
+      url => url, // Direto
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
+
+    let lastError;
+    for (const getUrl of proxies) {
+      try {
+        const res = await fetchWithTimeout(getUrl(SHEET_URL), { cache: 'no-store' }, 8000);
+        if (res.ok) {
+          csvText = await res.text();
+          break;
+        }
+      } catch (e) {
+        lastError = e;
+        console.warn(`Tentativa falhou para ${getUrl(SHEET_URL)}:`, e);
+      }
     }
+
+    if (!csvText) throw lastError || new Error('Falha em todas as tentativas de obtenção de dados');
 
     parseCSV(csvText);
     const count = productDB.size;
@@ -191,10 +211,23 @@ function parsePeso(val) {
 // ─── Search / Preview ───────────────────────────────────────────────────────
 codeInput.addEventListener('input', () => {
   codeError.textContent = '';
-  const code = codeInput.value.trim();
-  if (!code) { productPreview.textContent = ''; return; }
-  const p = productDB.get(code);
-  if (p) productPreview.innerHTML = `✓ ${p.desc || 'Sem descrição'}`;
+  const val = codeInput.value.toLowerCase().trim();
+  if (!val) { productPreview.textContent = ''; return; }
+
+  // Try exact code match first
+  let p = productDB.get(val);
+  
+  // If not found, try description search (starts with or includes)
+  if (!p) {
+    for (const prod of productDB.values()) {
+      if (prod.desc.toLowerCase().includes(val)) {
+        p = prod;
+        break;
+      }
+    }
+  }
+
+  if (p) productPreview.innerHTML = `✓ ${p.desc || 'Sem descrição'} (Cód: ${p.code})`;
   else productPreview.textContent = '';
 });
 
@@ -202,12 +235,23 @@ codeInput.addEventListener('input', () => {
 searchForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (productDB.size === 0) { showToast('Dados ainda não carregados.', 'error'); return; }
-  const code = codeInput.value.trim();
-  const qty  = parseInt(qtyInput.value, 10) || 1;
+  const val = codeInput.value.trim();
+  const qty = parseInt(qtyInput.value, 10) || 1;
   codeError.textContent = '';
-  if (!code) { codeError.textContent = 'Informe um código.'; codeInput.focus(); return; }
-  const product = productDB.get(code);
-  if (!product) { codeError.textContent = `Código "${code}" não encontrado.`; codeInput.focus(); return; }
+  if (!val) { codeError.textContent = 'Informe um código ou descrição.'; codeInput.focus(); return; }
+  
+  // Find product (same logic as preview)
+  let product = productDB.get(val);
+  if (!product) {
+    for (const prod of productDB.values()) {
+      if (prod.desc.toLowerCase().includes(val.toLowerCase())) {
+        product = prod;
+        break;
+      }
+    }
+  }
+
+  if (!product) { codeError.textContent = `Produto "${val}" não encontrado.`; codeInput.focus(); return; }
   if (qty < 1) { codeError.textContent = 'Mínimo: 1.'; qtyInput.focus(); return; }
 
   const item = { id: nextId++, product, qty };
@@ -319,6 +363,32 @@ printBtn.addEventListener('click', () => {
   window.print();
 });
 
+exportExcelBtn.addEventListener('click', () => {
+  if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
+  
+  const orderNum = orderNumInput.value.trim() || 'Sem_Numero';
+  const customer = customerNameInput.value.trim() || 'Sem_Cliente';
+  const filename = `Pedido_${orderNum}_${customer.replace(/\s+/g, '_')}.csv`;
+
+  // Excel-friendly CSV: BOM + semicolon separator (common in BR/Europe)
+  let csv = '\ufeff'; // BOM for UTF-8
+  csv += 'Codigo;Descricao;Quantidade;Volume_m3;Peso_kg;Lote;GTIN\n';
+
+  cartItems.forEach(item => {
+    const { vol, wt } = calcItem(item.product, item.qty);
+    csv += `${item.product.code};"${item.product.desc}";${item.qty};${vol.toFixed(3).replace('.',',')};${wt.toFixed(2).replace('.',',')};${item.product.lote};${item.product.gtin}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Excel/CSV exportado!', 'success');
+});
+
 // ─── Order Management & Supabase Sync ───────────────────────────────────────
 async function saveOrder() {
   const orderNum = orderNumInput.value.trim();
@@ -361,22 +431,41 @@ async function saveOrder() {
 
 async function renderSavedOrders() {
   const localOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
-  let displayOrders = localOrders;
+  let displayOrders = [...localOrders];
 
-  // If supabase is ready, try to fetch and merge
-  if (supabase && localOrders.length === 0) {
+  // Supabase Sync: Fetch and Merge
+  if (supabase) {
      setSyncStatus('syncing');
      try {
-       const { data, error } = await supabase.from('cxb_orders').select('*').order('created_at', { ascending: false });
+       const { data, error } = await supabase.from('cxb_orders').select('*').order('created_at', { ascending: false }).limit(50);
        if (error) throw error;
-       if (data && data.length > 0) {
-         displayOrders = data.map(d => ({
+       
+       if (data) {
+         // Create a map of IDs for quick lookup
+         const localIds = new Set(localOrders.map(o => o.id));
+         
+         const cloudOrders = data.map(d => ({
            id: d.id,
            orderNum: d.order_num,
            customerName: d.customer_name,
            items: d.items,
-           timestamp: d.created_at
+           timestamp: d.created_at,
+           status: d.status || 'Pendente' // Future-proofing
          }));
+
+         // Merge: Add cloud orders that are not in local
+         let merged = [...localOrders];
+         cloudOrders.forEach(co => {
+           if (!localIds.has(co.id)) {
+             merged.push(co);
+           }
+         });
+         
+         // Sort by timestamp descending
+         merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+         displayOrders = merged;
+         
+         // Update local storage to keep it in sync
          localStorage.setItem(SAVED_ORDERS_KEY, JSON.stringify(displayOrders));
        }
        setSyncStatus('synced');
@@ -399,7 +488,10 @@ async function renderSavedOrders() {
     card.className = 'saved-order-card';
     card.innerHTML = `
       <div class="saved-order-info">
-        <div class="saved-order-title">Pedido: ${escHtml(order.orderNum)}</div>
+        <div class="saved-order-top">
+          <div class="saved-order-title">Pedido: ${escHtml(order.orderNum)}</div>
+          <span class="status-badge" data-status="${order.status || 'Pendente'}">${order.status || 'Pendente'}</span>
+        </div>
         <div class="saved-order-client">Cliente: ${escHtml(order.customerName)}</div>
       </div>
       <div class="saved-order-meta"><span>${dateStr} às ${timeStr}</span><span>${order.items.length} itens</span></div>

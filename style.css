@@ -753,7 +753,8 @@ input::placeholder { color: var(--text-muted); }
 .accent-wt { border-color: rgba(255, 140, 66, 0.3); }
 .accent-wt .total-value { color: var(--orange); }
 
-<<<<<<< HEAD
+
+
 .btn-success {
   display: inline-flex;
   align-items: center;
@@ -877,6 +878,14 @@ input::placeholder { color: var(--text-muted); }
   gap: 4px;
 }
 
+.saved-order-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
 .saved-order-title {
   font-size: 0.95rem;
   font-weight: 700;
@@ -940,8 +949,32 @@ input::placeholder { color: var(--text-muted); }
   color: white;
 }
 
-=======
->>>>>>> ae63ea9b584a77b5502a671e25caa0eec7a35a96
+/* Status Badge */
+.status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+}
+
+.status-badge[data-status="Pendente"] {
+  color: var(--orange);
+  background: rgba(255, 140, 66, 0.1);
+  border-color: rgba(255, 140, 66, 0.2);
+}
+
+.status-badge[data-status="Expedido"] {
+  color: var(--green);
+  background: rgba(0, 217, 126, 0.1);
+  border-color: rgba(0, 217, 126, 0.2);
+}
+
+
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
