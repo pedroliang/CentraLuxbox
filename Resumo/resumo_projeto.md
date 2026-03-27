@@ -24,7 +24,7 @@ O **CentraLu Xbox** é um sistema web moderno para consulta de estoque e cálcul
 - `server.js`: Servidor local em Node.js configurado para servir arquivos com encoding UTF-8.
 
 ## 📊 Fonte de Dados (Google Sheets)
-- **URL:** [Clique aqui](https://docs.google.com/spreadsheets/d/1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM/edit?gid=0)
+- **URL:** [Clique aqui](https://docs.google.com/spreadsheets/d/1fRqUo8vH4awjCwV12U0fhR2bdBSRGFUVMlU8PozUsoQ/edit?gid=0)
 - **Colunas Usadas:** A (Cód), B (Desc), O-Q (Dimensões cm), R (Peso kg), S (Lote), T (GTIN-14).
 
 ## ⚙️ Configurações Supabase (Cloud Sync)

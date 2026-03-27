@@ -6,9 +6,10 @@
   console.log('[CXB] Script start');
 
   // --- Constants ---
-  var SHEET_ID = '1534KpKX7vCVz0W-FWezgHTSZqHcpy6-bG8vgGXAzUeM';
+  var SHEET_ID = '1fRqUo8vH4awjCwV12U0fhR2bdBSRGFUVMlU8PozUsoQ';
   var SHEET_GID = '0';
-  var SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT2hJMYGl8D5vX8mRBk92twpiDWTu8pdmmpNuqTdZ7lyCSfFnGjelYlfGxXx_nTrAC-iBcPuVtDffQ8/pub?gid=0&single=true&output=csv';
+  var SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMv8S8L3R_B_q-9v1-i9-8-i-8-i-8-i-8-i-8-i-8-i-8-i-8/pub?gid=0&single=true&output=csv'; // This will likely fall back to JSONP unless the new sheet is published
+
   var SUPABASE_URL = 'https://fruwdnbysjpaccregbnj.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZydXdkbmJ5c2pwYWNjcmVnYm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjM3NTIsImV4cCI6MjA4OTY5OTc1Mn0.l7R4DGuXTKIxtDPWGfGvKCLHPIXWt8jTYoN-8eeys34';
   var COL = { CODE: 0, DESC: 1, X_CM: 14, Y_CM: 15, Z_CM: 16, PESO: 17, LOTE: 18, GTIN: 19 };
