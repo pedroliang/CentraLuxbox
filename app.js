@@ -12,7 +12,7 @@
 
   var SUPABASE_URL = 'https://fruwdnbysjpaccregbnj.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZydXdkbmJ5c2pwYWNjcmVnYm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjM3NTIsImV4cCI6MjA4OTY5OTc1Mn0.l7R4DGuXTKIxtDPWGfGvKCLHPIXWt8jTYoN-8eeys34';
-  var COL = { CODE: 0, DESC: 1, X_CM: 14, Y_CM: 15, Z_CM: 16, PESO: 17, LOTE: 18, GTIN: 19 };
+  var COL = { CODE: 0, DESC: 1, X_CM: 15, Y_CM: 16, Z_CM: 17, PESO: 18, LOTE: 19, GTIN: 20 };
   var HEADER_ROWS = 3;
   var SAVED_ORDERS_KEY = 'cxb-saved-orders';
 
@@ -182,13 +182,13 @@
       if (!rows || rows.length === 0) throw new Error('No data received');
 
       // --- Dynamic Column Mapping ---
-      // We look for a row that contains our headers.
+      // We search for the row that contains 'Cod.' or 'X (CM)'
       var headerRowIndex = -1;
       for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var r = rows[i];
         if (!r) continue;
         var joined = r.join('|').toUpperCase();
-        if (joined.indexOf('X (CM)') !== -1 || joined.indexOf('PESO') !== -1 || joined.indexOf('DESCRI') !== -1) {
+        if (joined.indexOf('COD') !== -1 || joined.indexOf('X (CM)') !== -1) {
           headerRowIndex = i;
           break;
         }
@@ -197,22 +197,29 @@
       if (headerRowIndex !== -1) {
         var h = rows[headerRowIndex];
         console.log('[CXB] Header row found at index', headerRowIndex, h);
+        
+        // Define standard positions based on screenshot
+        // A=0, P=15, Q=16, R=17, S=18, T=19, U=20
+        var map = { CODE: 0, DESC: 1, X_CM: 15, Y_CM: 16, Z_CM: 17, PESO: 18, LOTE: 19, GTIN: 20 };
+        
+        // Let's also try to see if they are elsewhere just in case
         for (var j = 0; j < h.length; j++) {
           var val = String(h[j]).toUpperCase().trim();
-          if (val.indexOf('CÓD') === 0 || val === 'CODE') COL.CODE = j;
-          else if (val.indexOf('DESCRI') === 0) COL.DESC = j;
-          else if (val === 'X (CM)') COL.X_CM = j;
-          else if (val === 'Y (CM)') COL.Y_CM = j;
-          else if (val === 'Z (CM)') COL.Z_CM = j;
-          else if (val.indexOf('PESO') !== -1) COL.PESO = j;
-          else if (val === 'LOTE') COL.LOTE = j;
-          else if (val.indexOf('GTIN') !== -1) COL.GTIN = j;
+          if (val === 'X (CM)') map.X_CM = j;
+          else if (val === 'Y (CM)') map.Y_CM = j;
+          else if (val === 'Z (CM)') map.Z_CM = j;
+          else if (val.indexOf('PESO') !== -1) map.PESO = j;
+          else if (val.indexOf('COD') !== -1) map.CODE = j;
+          else if (val.indexOf('DESC') !== -1) map.DESC = j;
+          else if (val.indexOf('LOTE') !== -1) map.LOTE = j;
+          else if (val.indexOf('GTIN') !== -1) map.GTIN = j;
         }
-        console.log('[CXB] Mapped columns:', COL);
+        COL = map;
+        console.log('[CXB] Final Mapped columns:', COL);
         // Data starts after header
         rows = rows.slice(headerRowIndex + 1);
       } else {
-        console.warn('[CXB] Header row not found, using defaults.');
+        console.warn('[CXB] Header row not found, using fixed defaults.');
         // Fallback for cases without clear headers
         if (rows.length > 0 && rows[0][0] && isNaN(Number(rows[0][0]))) {
           rows = rows.slice(1);
