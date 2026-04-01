@@ -158,7 +158,7 @@
           return res.text();
         })
         .then(function(text) {
-          var rows = parseCSVRows(text).slice(HEADER_ROWS);
+          var rows = parseCSVRows(text); // Return all rows to allow header detection
           resolve(rows);
         })
         .catch(function(err) {
@@ -171,51 +171,83 @@
   // --- Main Data Loader ---
   function loadData() {
     setStatus('loading', 'Carregando dados...');
-    console.log('[CXB] loadData: trying JSONP...');
+    console.log('[CXB] loadData: starting...');
 
-    loadViaJSONP()
-      .then(function(rows) {
-        console.log('[CXB] JSONP success, rows:', rows.length);
-        // Skip header row if first cell is not a number
+    var p = loadViaJSONP().catch(function(err) {
+      console.warn('[CXB] JSONP failed:', err.message, '- trying CSV...');
+      return loadViaCSV();
+    });
+
+    p.then(function(rows) {
+      if (!rows || rows.length === 0) throw new Error('No data received');
+
+      // --- Dynamic Column Mapping ---
+      // We look for a row that contains our headers.
+      var headerRowIndex = -1;
+      for (var i = 0; i < Math.min(rows.length, 15); i++) {
+        var r = rows[i];
+        if (!r) continue;
+        var joined = r.join('|').toUpperCase();
+        if (joined.indexOf('X (CM)') !== -1 || joined.indexOf('PESO') !== -1 || joined.indexOf('DESCRI') !== -1) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+
+      if (headerRowIndex !== -1) {
+        var h = rows[headerRowIndex];
+        console.log('[CXB] Header row found at index', headerRowIndex, h);
+        for (var j = 0; j < h.length; j++) {
+          var val = String(h[j]).toUpperCase().trim();
+          if (val.indexOf('CÓD') === 0 || val === 'CODE') COL.CODE = j;
+          else if (val.indexOf('DESCRI') === 0) COL.DESC = j;
+          else if (val === 'X (CM)') COL.X_CM = j;
+          else if (val === 'Y (CM)') COL.Y_CM = j;
+          else if (val === 'Z (CM)') COL.Z_CM = j;
+          else if (val.indexOf('PESO') !== -1) COL.PESO = j;
+          else if (val === 'LOTE') COL.LOTE = j;
+          else if (val.indexOf('GTIN') !== -1) COL.GTIN = j;
+        }
+        console.log('[CXB] Mapped columns:', COL);
+        // Data starts after header
+        rows = rows.slice(headerRowIndex + 1);
+      } else {
+        console.warn('[CXB] Header row not found, using defaults.');
+        // Fallback for cases without clear headers
         if (rows.length > 0 && rows[0][0] && isNaN(Number(rows[0][0]))) {
           rows = rows.slice(1);
         }
-        return rows;
-      })
-      .catch(function(err) {
-        console.warn('[CXB] JSONP failed:', err.message, '- trying CSV...');
-        return loadViaCSV();
-      })
-      .then(function(rows) {
-        productDB.clear();
-        for (var i = 0; i < rows.length; i++) {
-          var row = rows[i];
-          var code = (row[COL.CODE] || '').trim();
-          if (!code || isNaN(Number(code))) continue;
-          if (!productDB.has(code)) {
-            productDB.set(code, {
-              code: code,
-              desc: (row[COL.DESC] || '').trim(),
-              x: parseNum(row[COL.X_CM]),
-              y: parseNum(row[COL.Y_CM]),
-              z: parseNum(row[COL.Z_CM]),
-              peso: parsePeso(row[COL.PESO]),
-              lote: (row[COL.LOTE] || '').trim(),
-              gtin: (row[COL.GTIN] || '').trim()
-            });
-          }
+      }
+
+      productDB.clear();
+      for (var k = 0; k < rows.length; k++) {
+        var row = rows[k];
+        var code = (row[COL.CODE] || '').trim();
+        if (!code || isNaN(Number(code))) continue;
+        if (!productDB.has(code)) {
+          productDB.set(code, {
+            code: code,
+            desc: (row[COL.DESC] || '').trim(),
+            x: parseNum(row[COL.X_CM]),
+            y: parseNum(row[COL.Y_CM]),
+            z: parseNum(row[COL.Z_CM]),
+            peso: parsePeso(row[COL.PESO]),
+            lote: (row[COL.LOTE] || '').trim(),
+            gtin: (row[COL.GTIN] || '').trim()
+          });
         }
-        var count = productDB.size;
-        if (count === 0) throw new Error('No products found');
-        console.log('[CXB] Loaded ' + count + ' products');
-        setStatus('ready', count + ' produtos carregados');
-        showToast('Dados carregados: ' + count + ' produtos', 'success');
-      })
-      .catch(function(err) {
-        console.error('[CXB] Load error:', err);
-        setStatus('error', 'Erro ao carregar dados');
-        showToast('Erro ao carregar dados da planilha.', 'error');
-      });
+      }
+      var count = productDB.size;
+      if (count === 0) throw new Error('No products found');
+      console.log('[CXB] Loaded ' + count + ' products');
+      setStatus('ready', count + ' produtos carregados');
+      showToast('Dados carregados: ' + count + ' produtos', 'success');
+    })
+    .catch(function(err) {
+      console.error('[CXB] Load error:', err);
+      setStatus('error', 'Erro ao carregar dados');
+      showToast('Erro ao carregar dados da planilha.', 'error');
+    });
   }
 
   // --- Cart ---
