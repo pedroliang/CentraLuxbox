@@ -590,8 +590,38 @@
           }
         }
         if (productPreview) {
-          if (p) productPreview.innerHTML = '\u2713 ' + (p.desc || 'Sem descri\u00E7\u00E3o') + ' (C\u00F3d: ' + p.code + ')';
-          else productPreview.textContent = '';
+          if (p) {
+            var hasDims = p.x !== null && p.y !== null && p.z !== null;
+            var hasPeso = p.peso !== null;
+            var qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
+            var result = calcItem(p, qty);
+            productPreview.innerHTML =
+              '<div class="preview-card">' +
+                '<div class="preview-card-header">' +
+                  '<span class="card-code">C\u00F3d. ' + escHtml(p.code) + '</span>' +
+                  '<div class="card-name">' + escHtml(p.desc || '(sem descri\u00E7\u00E3o)') + '</div>' +
+                '</div>' +
+                '<div class="card-dims">' +
+                  buildDimBadge('X (cm)', p.x) + ' ' +
+                  buildDimBadge('Y (cm)', p.y) + ' ' +
+                  buildDimBadge('Z (cm)', p.z) + ' ' +
+                  buildDimBadge('Peso/cx', hasPeso ? fmtNum(p.peso) + ' kg' : null) +
+                '</div>' +
+                '<div class="card-calc">' +
+                  '<div class="calc-result">' +
+                    '<span class="calc-result-label">Volume</span>' +
+                    '<span class="calc-vol">' + (hasDims ? fmtVol(result.vol) : '\u2014') + '</span>' +
+                    '<span class="calc-wt">' + (hasPeso ? fmtPeso(result.wt) : '\u2014') + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="card-meta">' +
+                  buildMetaItem('Lote', p.lote) + ' ' + buildMetaItem('GTIN-14', p.gtin) +
+                '</div>' +
+                (!hasDims ? '<div class="no-cubagem-warn">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '') +
+              '</div>';
+          } else {
+            productPreview.textContent = '';
+          }
         }
       });
     }
@@ -650,49 +680,4 @@
 
     if (exportExcelBtn) {
       exportExcelBtn.addEventListener('click', function() {
-        if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
-        var orderNum = (orderNumInput ? orderNumInput.value.trim() : '') || 'Sem_Numero';
-        var customer = (customerNameInput ? customerNameInput.value.trim() : '') || 'Sem_Cliente';
-        var filename = 'Pedido_' + orderNum + '_' + customer.replace(/\s+/g, '_') + '.csv';
-        var csv = '\ufeff';
-        csv += 'Codigo;Descricao;Quantidade;Volume_m3;Peso_kg;Lote;GTIN\n';
-        cartItems.forEach(function(item) {
-          var r = calcItem(item.product, item.qty);
-          csv += item.product.code + ';"' + item.product.desc + '";' + item.qty + ';' +
-            r.vol.toFixed(3).replace('.', ',') + ';' + r.wt.toFixed(2).replace('.', ',') + ';' +
-            item.product.lote + ';' + item.product.gtin + '\n';
-        });
-        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        var link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast('Excel/CSV exportado!', 'success');
-      });
-    }
-
-    if (saveOrderBtn) {
-      saveOrderBtn.addEventListener('click', saveOrder);
-    }
-
-    console.log('[CXB] Event listeners attached');
-
-    // Load data
-    loadData();
-
-    // Render saved orders
-    renderSavedOrders();
-
-    console.log('[CXB] Init complete');
-  }
-
-  // Run init
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
+        if (cartItems.length === 0) { showToast('A
