@@ -680,4 +680,49 @@
 
     if (exportExcelBtn) {
       exportExcelBtn.addEventListener('click', function() {
-        if (cartItems.length === 0) { showToast('A
+        if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
+        var orderNum = (orderNumInput ? orderNumInput.value.trim() : '') || 'Sem_Numero';
+        var customer = (customerNameInput ? customerNameInput.value.trim() : '') || 'Sem_Cliente';
+        var filename = 'Pedido_' + orderNum + '_' + customer.replace(/\s+/g, '_') + '.csv';
+        var csv = '\ufeff';
+        csv += 'Codigo;Descricao;Quantidade;Volume_m3;Peso_kg;Lote;GTIN\n';
+        cartItems.forEach(function(item) {
+          var r = calcItem(item.product, item.qty);
+          csv += item.product.code + ';"' + item.product.desc + '";' + item.qty + ';' +
+            r.vol.toFixed(3).replace('.', ',') + ';' + r.wt.toFixed(2).replace('.', ',') + ';' +
+            item.product.lote + ';' + item.product.gtin + '\n';
+        });
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Excel/CSV exportado!', 'success');
+      });
+    }
+
+    if (saveOrderBtn) {
+      saveOrderBtn.addEventListener('click', saveOrder);
+    }
+
+    console.log('[CXB] Event listeners attached');
+
+    // Load data
+    loadData();
+
+    // Render saved orders
+    renderSavedOrders();
+
+    console.log('[CXB] Init complete');
+  }
+
+  // Run init
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
