@@ -626,6 +626,31 @@ input::placeholder { color: var(--text-muted); }
 }
 .dim-badge.no-data .dim-value { color: var(--text-muted); font-size: 0.75rem; }
 
+/* Dim badge editável */
+.dim-badge.dim-editable {
+  border-color: var(--surface-border);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.dim-badge.dim-editable:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.dim-edit-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  width: 60px;
+  padding: 0;
+  caret-color: var(--accent);
+}
+.dim-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
+.dim-edit-input:focus { color: var(--accent-light); }
+
 /* Extra info row */
 .card-meta {
   display: flex;
@@ -659,6 +684,30 @@ input::placeholder { color: var(--text-muted); }
   word-break: break-all;
 }
 .meta-item.no-data .meta-value { color: var(--text-muted); font-size: 0.75rem; }
+
+/* Meta item editável */
+.meta-item.meta-editable {
+  border-color: var(--surface-border);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.meta-item.meta-editable:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.meta-edit-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  width: 100%;
+  padding: 0;
+  caret-color: var(--accent);
+}
+.meta-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
+.meta-edit-input:focus { color: var(--accent-light); }
 
 /* Calculation row */
 .card-calc {
@@ -1103,6 +1152,7 @@ footer {
   .calc-result { display: flex; flex-direction: column; gap: 2px; }
   .dim-badge, .meta-item, .card-calc { background: #f9f9f9 !important; border: 1.2px solid #999 !important; color: #000 !important; }
   .dim-value, .meta-value, .calc-vol, .calc-wt { color: #000 !important; font-size: 0.9rem !important; }
+  .dim-edit-input, .meta-edit-input { color: #000 !important; font-size: 0.9rem !important; }
   
   .totals-panel { margin-top: 30px; border-color: #666 !important; }
   .total-card { background: #f9f9f9 !important; border: 1.2px solid #999 !important; }

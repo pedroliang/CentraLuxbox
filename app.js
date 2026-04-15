@@ -288,6 +288,44 @@
     return '<div class="meta-item' + (hasVal ? '' : ' no-data') + '"><span class="meta-label">' + label + '</span><span class="meta-value">' + (hasVal ? escHtml(value) : '\u2014') + '</span></div>';
   }
 
+  function buildEditableDim(label, field, value, itemId) {
+    var rawVal = (value !== null && value !== undefined && value !== '') ? String(value).replace('.', ',') : '';
+    return '<div class="dim-badge dim-editable">' +
+      '<span class="dim-label">' + label + '</span>' +
+      '<input type="text" inputmode="decimal" class="dim-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="\u2014" />' +
+      '</div>';
+  }
+
+  function buildEditableMeta(label, field, value, itemId) {
+    var rawVal = (value && value !== '') ? value : '';
+    return '<div class="meta-item meta-editable">' +
+      '<span class="meta-label">' + label + '</span>' +
+      '<input type="text" class="meta-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="\u2014" />' +
+      '</div>';
+  }
+
+  function updateItemDim(id, field, rawValue) {
+    var item = cartItems.find(function(i) { return i.id === id; });
+    if (!item) return;
+    if (field === 'x' || field === 'y' || field === 'z') {
+      item.product[field] = parseNum(rawValue);
+    } else if (field === 'peso') {
+      item.product[field] = parsePeso(rawValue);
+    } else {
+      item.product[field] = rawValue.trim();
+    }
+    var result = calcItem(item.product, item.qty);
+    var hasDims = item.product.x !== null && item.product.y !== null && item.product.z !== null;
+    var hasPeso = item.product.peso !== null;
+    var vEl = document.querySelector('[data-vol="' + id + '"]');
+    var wEl = document.querySelector('[data-wt="' + id + '"]');
+    var warnEl = document.querySelector('[data-no-cubagem="' + id + '"]');
+    if (vEl) vEl.textContent = hasDims ? fmtVol(result.vol) : '\u2014';
+    if (wEl) wEl.textContent = hasPeso ? fmtPeso(result.wt) : '\u2014';
+    if (warnEl) warnEl.style.display = hasDims ? 'none' : '';
+    updateTotals();
+  }
+
   function buildProductCard(item) {
     var id = item.id, p = item.product, qty = item.qty;
     var hasDims = p.x !== null && p.y !== null && p.z !== null;
@@ -307,8 +345,10 @@
         '</button>' +
       '</div>' +
       '<div class="card-dims">' +
-        buildDimBadge('X (cm)', p.x) + ' ' + buildDimBadge('Y (cm)', p.y) + ' ' + buildDimBadge('Z (cm)', p.z) +
-        buildDimBadge('Peso/cx', p.peso !== null ? fmtNum(p.peso) + ' kg' : null) +
+        buildEditableDim('X (CM)', 'x', p.x, id) + ' ' +
+        buildEditableDim('Y (CM)', 'y', p.y, id) + ' ' +
+        buildEditableDim('Z (CM)', 'z', p.z, id) + ' ' +
+        buildEditableDim('PESO/CX', 'peso', p.peso, id) +
       '</div>' +
       '<div class="card-calc">' +
         '<div class="calc-qty-wrapper" data-qty="' + qty + '">' +
@@ -322,9 +362,10 @@
         '</div>' +
       '</div>' +
       '<div class="card-meta">' +
-        buildMetaItem('Lote', p.lote) + ' ' + buildMetaItem('GTIN-14', p.gtin) +
+        buildEditableMeta('Lote', 'lote', p.lote, id) + ' ' +
+        buildEditableMeta('GTIN-14', 'gtin', p.gtin, id) +
       '</div>' +
-      (!hasDims ? '<div class="no-cubagem-warn">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '');
+      (!hasDims ? '<div class="no-cubagem-warn" data-no-cubagem="' + id + '">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '');
 
     card.querySelector('[data-remove-id]').addEventListener('click', function() { removeItem(id); });
     card.querySelector('.calc-qty-input').addEventListener('input', function(e) {
@@ -332,6 +373,16 @@
       e.target.value = newQty;
       e.target.closest('.calc-qty-wrapper').setAttribute('data-qty', newQty);
       updateItemQty(id, newQty);
+    });
+    card.querySelectorAll('.dim-edit-input').forEach(function(input) {
+      input.addEventListener('change', function(e) {
+        updateItemDim(id, e.target.getAttribute('data-field'), e.target.value);
+      });
+    });
+    card.querySelectorAll('.meta-edit-input').forEach(function(input) {
+      input.addEventListener('change', function(e) {
+        updateItemDim(id, e.target.getAttribute('data-field'), e.target.value);
+      });
     });
     return card;
   }
