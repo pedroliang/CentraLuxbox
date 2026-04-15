@@ -635,9 +635,10 @@ input::placeholder { color: var(--text-muted); }
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
-.dim-edit-input {
+input.dim-edit-input {
   background: transparent;
   border: none;
+  border-radius: 0;
   outline: none;
   font-family: var(--font);
   font-size: 0.85rem;
@@ -645,11 +646,13 @@ input::placeholder { color: var(--text-muted); }
   color: var(--text-primary);
   text-align: center;
   width: 6ch;
+  height: auto;
   padding: 0;
   caret-color: var(--accent);
+  transition: none;
 }
-.dim-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
-.dim-edit-input:focus { color: var(--accent-light); }
+input.dim-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
+input.dim-edit-input:focus { color: var(--accent-light); }
 
 /* Extra info row */
 .card-meta {
@@ -694,20 +697,23 @@ input::placeholder { color: var(--text-muted); }
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
-.meta-edit-input {
+input.meta-edit-input {
   background: transparent;
   border: none;
+  border-radius: 0;
   outline: none;
   font-family: var(--font);
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--text-primary);
   width: 100%;
+  height: auto;
   padding: 0;
   caret-color: var(--accent);
+  transition: none;
 }
-.meta-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
-.meta-edit-input:focus { color: var(--accent-light); }
+input.meta-edit-input::placeholder { color: var(--text-muted); font-weight: 400; }
+input.meta-edit-input:focus { color: var(--accent-light); }
 
 /* Calculation row */
 .card-calc {
