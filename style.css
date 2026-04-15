@@ -630,9 +630,6 @@ input::placeholder { color: var(--text-muted); }
 .dim-badge.dim-editable {
   border-color: var(--surface-border);
   transition: border-color var(--transition), box-shadow var(--transition);
-  min-width: 72px;
-  max-width: 90px;
-  flex-shrink: 0;
 }
 .dim-badge.dim-editable:focus-within {
   border-color: var(--accent);
@@ -647,8 +644,7 @@ input::placeholder { color: var(--text-muted); }
   font-weight: 600;
   color: var(--text-primary);
   text-align: center;
-  width: 100%;
-  min-width: 0;
+  width: 6ch;
   padding: 0;
   caret-color: var(--accent);
 }
