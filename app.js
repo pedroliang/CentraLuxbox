@@ -30,13 +30,14 @@
   var printHeader, printOrderNum, printCustomerName, printTimestamp;
   var saveOrderBtn, savedOrdersSection, savedOrdersCount, savedOrdersList;
   var syncStatus, exportExcelBtn;
+  var bulkAddBtn, bulkModal, bulkTextarea, bulkProcessBtn, bulkPreview;
 
   // --- Utils ---
   function fmtNum(n) {
-    return n == null ? '\u2014' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function fmtVol(v) {
-    return v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' m\u00B3';
+    return v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' m³';
   }
   function fmtPeso(w) {
     return w.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
@@ -181,8 +182,6 @@
     p.then(function(rows) {
       if (!rows || rows.length === 0) throw new Error('No data received');
 
-      // --- Dynamic Column Mapping ---
-      // We search for the row that contains 'Cod.' or 'X (CM)'
       var headerRowIndex = -1;
       for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var r = rows[i];
@@ -197,12 +196,9 @@
       if (headerRowIndex !== -1) {
         var h = rows[headerRowIndex];
         console.log('[CXB] Header row found at index', headerRowIndex, h);
-        
-        // Define standard positions based on screenshot
-        // A=0, P=15, Q=16, R=17, S=18, T=19, U=20
+
         var map = { CODE: 0, DESC: 1, X_CM: 15, Y_CM: 16, Z_CM: 17, PESO: 18, LOTE: 19, GTIN: 20 };
-        
-        // Let's also try to see if they are elsewhere just in case
+
         for (var j = 0; j < h.length; j++) {
           var val = String(h[j]).toUpperCase().trim();
           if (val === 'X (CM)') map.X_CM = j;
@@ -216,11 +212,9 @@
         }
         COL = map;
         console.log('[CXB] Final Mapped columns:', COL);
-        // Data starts after header
         rows = rows.slice(headerRowIndex + 1);
       } else {
         console.warn('[CXB] Header row not found, using fixed defaults.');
-        // Fallback for cases without clear headers
         if (rows.length > 0 && rows[0][0] && isNaN(Number(rows[0][0]))) {
           rows = rows.slice(1);
         }
@@ -280,19 +274,19 @@
 
   function buildDimBadge(label, value) {
     var hasVal = value !== null && value !== undefined && value !== '';
-    return '<div class="dim-badge' + (hasVal ? '' : ' no-data') + '"><span class="dim-label">' + label + '</span><span class="dim-value">' + (hasVal ? (typeof value === 'number' ? fmtNum(value) : value) : '\u2014') + '</span></div>';
+    return '<div class="dim-badge' + (hasVal ? '' : ' no-data') + '"><span class="dim-label">' + label + '</span><span class="dim-value">' + (hasVal ? (typeof value === 'number' ? fmtNum(value) : value) : '—') + '</span></div>';
   }
 
   function buildMetaItem(label, value) {
     var hasVal = value && value !== '';
-    return '<div class="meta-item' + (hasVal ? '' : ' no-data') + '"><span class="meta-label">' + label + '</span><span class="meta-value">' + (hasVal ? escHtml(value) : '\u2014') + '</span></div>';
+    return '<div class="meta-item' + (hasVal ? '' : ' no-data') + '"><span class="meta-label">' + label + '</span><span class="meta-value">' + (hasVal ? escHtml(value) : '—') + '</span></div>';
   }
 
   function buildEditableDim(label, field, value, itemId) {
     var rawVal = (value !== null && value !== undefined && value !== '') ? String(value).replace('.', ',') : '';
     return '<div class="dim-badge dim-editable">' +
       '<span class="dim-label">' + label + '</span>' +
-      '<input type="text" inputmode="decimal" class="dim-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="\u2014" />' +
+      '<input type="text" inputmode="decimal" class="dim-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="—" />' +
       '</div>';
   }
 
@@ -300,7 +294,7 @@
     var rawVal = (value && value !== '') ? value : '';
     return '<div class="meta-item meta-editable">' +
       '<span class="meta-label">' + label + '</span>' +
-      '<input type="text" class="meta-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="\u2014" />' +
+      '<input type="text" class="meta-edit-input" data-field="' + field + '" data-item-id="' + itemId + '" value="' + escHtml(rawVal) + '" placeholder="—" />' +
       '</div>';
   }
 
@@ -320,8 +314,8 @@
     var vEl = document.querySelector('[data-vol="' + id + '"]');
     var wEl = document.querySelector('[data-wt="' + id + '"]');
     var warnEl = document.querySelector('[data-no-cubagem="' + id + '"]');
-    if (vEl) vEl.textContent = hasDims ? fmtVol(result.vol) : '\u2014';
-    if (wEl) wEl.textContent = hasPeso ? fmtPeso(result.wt) : '\u2014';
+    if (vEl) vEl.textContent = hasDims ? fmtVol(result.vol) : '—';
+    if (wEl) wEl.textContent = hasPeso ? fmtPeso(result.wt) : '—';
     if (warnEl) warnEl.style.display = hasDims ? 'none' : '';
     updateTotals();
   }
@@ -337,8 +331,8 @@
     card.innerHTML =
       '<div class="card-header">' +
         '<div>' +
-          '<span class="card-code">C\u00F3d. ' + escHtml(p.code) + '</span>' +
-          '<div class="card-name">' + escHtml(p.desc || '(sem descri\u00E7\u00E3o)') + '</div>' +
+          '<span class="card-code">Cód. ' + escHtml(p.code) + '</span>' +
+          '<div class="card-name">' + escHtml(p.desc || '(sem descrição)') + '</div>' +
         '</div>' +
         '<button class="card-remove-btn" aria-label="Remover" data-remove-id="' + id + '">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
@@ -357,15 +351,15 @@
         '</div>' +
         '<div class="calc-result">' +
           '<span class="calc-result-label">Volume</span>' +
-          '<span class="calc-vol" data-vol="' + id + '">' + (hasDims ? fmtVol(result.vol) : '\u2014') + '</span>' +
-          '<span class="calc-wt" data-wt="' + id + '">' + (hasPeso ? fmtPeso(result.wt) : '\u2014') + '</span>' +
+          '<span class="calc-vol" data-vol="' + id + '">' + (hasDims ? fmtVol(result.vol) : '—') + '</span>' +
+          '<span class="calc-wt" data-wt="' + id + '">' + (hasPeso ? fmtPeso(result.wt) : '—') + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="card-meta">' +
         buildEditableMeta('Lote', 'lote', p.lote, id) + ' ' +
         buildEditableMeta('GTIN-14', 'gtin', p.gtin, id) +
       '</div>' +
-      (!hasDims ? '<div class="no-cubagem-warn" data-no-cubagem="' + id + '">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '');
+      (!hasDims ? '<div class="no-cubagem-warn" data-no-cubagem="' + id + '">⚠ Dimensões não disponíveis.</div>' : '');
 
     card.querySelector('[data-remove-id]').addEventListener('click', function() { removeItem(id); });
     card.querySelector('.calc-qty-input').addEventListener('input', function(e) {
@@ -400,8 +394,8 @@
     var result = calcItem(item.product, qty);
     var vEl = document.querySelector('[data-vol="' + id + '"]');
     var wEl = document.querySelector('[data-wt="' + id + '"]');
-    if (vEl) vEl.textContent = item.product.x !== null ? fmtVol(result.vol) : '\u2014';
-    if (wEl) wEl.textContent = item.product.peso !== null ? fmtPeso(result.wt) : '\u2014';
+    if (vEl) vEl.textContent = item.product.x !== null ? fmtVol(result.vol) : '—';
+    if (wEl) wEl.textContent = item.product.peso !== null ? fmtPeso(result.wt) : '—';
     updateTotals();
   }
 
@@ -428,7 +422,7 @@
     var savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
     var newOrder = {
       id: Date.now(),
-      orderNum: orderNum || 'Sem N\u00FAmero',
+      orderNum: orderNum || 'Sem Número',
       customerName: customerName || 'Sem Cliente',
       items: JSON.parse(JSON.stringify(cartItems)),
       timestamp: new Date().toISOString()
@@ -479,7 +473,7 @@
             '</div>' +
             '<div class="saved-order-client">Cliente: ' + escHtml(order.customerName) + '</div>' +
           '</div>' +
-          '<div class="saved-order-meta"><span>' + dateStr + ' \u00E0s ' + timeStr + '</span><span>' + order.items.length + ' itens</span></div>' +
+          '<div class="saved-order-meta"><span>' + dateStr + ' às ' + timeStr + '</span><span>' + order.items.length + ' itens</span></div>' +
           '<div class="saved-order-actions">' +
             '<button class="btn-small btn-small-open" data-open-id="' + order.id + '">Abrir</button>' +
             '<button class="btn-small btn-small-delete" data-delete-id="' + order.id + '">Deletar</button>' +
@@ -490,7 +484,6 @@
       });
     }
 
-    // Try Supabase merge
     if (supabase) {
       setSyncStatus('syncing');
       supabase.from('cxb_orders').select('*').order('created_at', { ascending: false }).limit(50)
@@ -527,9 +520,9 @@
   function openOrder(id) {
     var savedOrders = JSON.parse(localStorage.getItem(SAVED_ORDERS_KEY) || '[]');
     var order = savedOrders.find(function(o) { return o.id === id; });
-    if (!order) { showToast('Pedido n\u00E3o encontrado.', 'error'); return; }
+    if (!order) { showToast('Pedido não encontrado.', 'error'); return; }
     cartItems = JSON.parse(JSON.stringify(order.items));
-    if (orderNumInput) orderNumInput.value = order.orderNum === 'Sem N\u00FAmero' ? '' : order.orderNum;
+    if (orderNumInput) orderNumInput.value = order.orderNum === 'Sem Número' ? '' : order.orderNum;
     if (customerNameInput) customerNameInput.value = order.customerName === 'Sem Cliente' ? '' : order.customerName;
     renderCart();
     updateTotals();
@@ -549,6 +542,151 @@
     if (supabase) {
       supabase.from('cxb_orders').delete().eq('id', id)
         .catch(function(err) { console.error('Supabase delete error:', err); });
+    }
+  }
+
+  // --- Bulk Add ---
+  function parseBulkText(text) {
+    var result = { entries: [], errors: [] };
+    if (!text) return result;
+    var lines = text.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      var line = raw.trim();
+      if (!line) continue;
+      var parts = line.split(/[\t;,|]|\s{1,}/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+      if (parts.length === 0) continue;
+      var code = parts[0];
+      var qtyRaw = parts.length > 1 ? parts[parts.length - 1] : '1';
+      code = code.replace(/[^\w-]/g, '');
+      var qty = parseInt(String(qtyRaw).replace(/[^\d-]/g, ''), 10);
+      if (isNaN(qty) || qty < 1) {
+        if (parts.length === 1) {
+          qty = 1;
+        } else {
+          result.errors.push({ line: i + 1, raw: raw, reason: 'Quantidade invalida' });
+          continue;
+        }
+      }
+      if (!code) {
+        result.errors.push({ line: i + 1, raw: raw, reason: 'Codigo vazio' });
+        continue;
+      }
+      result.entries.push({ code: code, qty: qty, line: i + 1, raw: raw });
+    }
+    return result;
+  }
+
+  function findProductByCode(code) {
+    if (!code) return null;
+    var direct = productDB.get(code);
+    if (direct) return direct;
+    var low = String(code).toLowerCase();
+    var iter = productDB.values();
+    var entry = iter.next();
+    while (!entry.done) {
+      if (String(entry.value.code).toLowerCase() === low) return entry.value;
+      entry = iter.next();
+    }
+    return null;
+  }
+
+  function renderBulkPreview(text) {
+    if (!bulkPreview) return;
+    var parsed = parseBulkText(text);
+    if (parsed.entries.length === 0 && parsed.errors.length === 0) {
+      bulkPreview.innerHTML = '';
+      return;
+    }
+    var found = 0, notFound = 0, totalBoxes = 0;
+    var notFoundList = [];
+    for (var i = 0; i < parsed.entries.length; i++) {
+      var e = parsed.entries[i];
+      var p = findProductByCode(e.code);
+      if (p) {
+        found++;
+        totalBoxes += e.qty;
+      } else {
+        notFound++;
+        notFoundList.push('Linha ' + e.line + ': código "' + escHtml(e.code) + '" não encontrado');
+      }
+    }
+    var errorList = parsed.errors.map(function(err) {
+      return 'Linha ' + err.line + ': ' + escHtml(err.reason) + ' (' + escHtml(err.raw) + ')';
+    }).concat(notFoundList);
+
+    var html =
+      '<div class="bulk-stats">' +
+        '<span class="bulk-stat ok">Encontrados: <strong>' + found + '</strong></span>' +
+        '<span class="bulk-stat">Total de caixas: <strong>' + totalBoxes.toLocaleString('pt-BR') + '</strong></span>' +
+        (notFound + parsed.errors.length > 0
+          ? '<span class="bulk-stat err">Com erro: <strong>' + (notFound + parsed.errors.length) + '</strong></span>'
+          : '') +
+      '</div>';
+    if (errorList.length > 0) {
+      html += '<div class="bulk-errors"><strong>Atenção:</strong><ul>' +
+        errorList.map(function(item) { return '<li>' + item + '</li>'; }).join('') +
+        '</ul></div>';
+    }
+    bulkPreview.innerHTML = html;
+  }
+
+  function openBulkModal() {
+    if (!bulkModal) return;
+    if (productDB.size === 0) {
+      showToast('Dados ainda não carregados.', 'error');
+      return;
+    }
+    bulkModal.hidden = false;
+    bulkModal.setAttribute('aria-hidden', 'false');
+    if (bulkTextarea) {
+      bulkTextarea.value = '';
+      setTimeout(function() { bulkTextarea.focus(); }, 50);
+    }
+    if (bulkPreview) bulkPreview.innerHTML = '';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeBulkModal() {
+    if (!bulkModal) return;
+    bulkModal.hidden = true;
+    bulkModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function processBulkAdd() {
+    if (!bulkTextarea) return;
+    if (productDB.size === 0) {
+      showToast('Dados ainda não carregados.', 'error');
+      return;
+    }
+    var parsed = parseBulkText(bulkTextarea.value);
+    if (parsed.entries.length === 0) {
+      showToast('Cole pelo menos uma linha com código e quantidade.', 'error');
+      return;
+    }
+    var added = 0, notFoundCount = 0;
+    var notFoundCodes = [];
+    for (var i = 0; i < parsed.entries.length; i++) {
+      var e = parsed.entries[i];
+      var p = findProductByCode(e.code);
+      if (!p) {
+        notFoundCount++;
+        notFoundCodes.push(e.code);
+        continue;
+      }
+      cartItems.push({ id: nextId++, product: p, qty: e.qty });
+      added++;
+    }
+    renderCart();
+    updateTotals();
+    if (added > 0) {
+      var msg = added + ' produto(s) adicionado(s)';
+      if (notFoundCount > 0) msg += ' — ' + notFoundCount + ' não encontrado(s)';
+      showToast(msg, notFoundCount > 0 ? 'warning' : 'success');
+      closeBulkModal();
+    } else {
+      showToast('Nenhum produto encontrado: ' + notFoundCodes.slice(0, 3).join(', ') + (notFoundCodes.length > 3 ? '...' : ''), 'error');
     }
   }
 
@@ -585,7 +723,6 @@
   function init() {
     console.log('[CXB] DOM ready, initializing...');
 
-    // Get DOM refs
     themeToggle = document.getElementById('themeToggle');
     dataStatus = document.getElementById('dataStatus');
     statusText = dataStatus ? dataStatus.querySelector('.status-text') : null;
@@ -616,16 +753,17 @@
     savedOrdersList = document.getElementById('savedOrdersList');
     syncStatus = document.getElementById('syncStatus');
     exportExcelBtn = document.getElementById('exportExcelBtn');
+    bulkAddBtn = document.getElementById('bulkAddBtn');
+    bulkModal = document.getElementById('bulkModal');
+    bulkTextarea = document.getElementById('bulkTextarea');
+    bulkProcessBtn = document.getElementById('bulkProcessBtn');
+    bulkPreview = document.getElementById('bulkPreview');
 
     console.log('[CXB] DOM refs acquired');
 
-    // Theme
     initTheme();
-
-    // Supabase
     initSupabase();
 
-    // Event listeners
     if (codeInput) {
       codeInput.addEventListener('input', function() {
         if (codeError) codeError.textContent = '';
@@ -649,8 +787,8 @@
             productPreview.innerHTML =
               '<div class="preview-card">' +
                 '<div class="preview-card-header">' +
-                  '<span class="card-code">C\u00F3d. ' + escHtml(p.code) + '</span>' +
-                  '<div class="card-name">' + escHtml(p.desc || '(sem descri\u00E7\u00E3o)') + '</div>' +
+                  '<span class="card-code">Cód. ' + escHtml(p.code) + '</span>' +
+                  '<div class="card-name">' + escHtml(p.desc || '(sem descrição)') + '</div>' +
                 '</div>' +
                 '<div class="card-dims">' +
                   buildDimBadge('X (cm)', p.x) + ' ' +
@@ -661,14 +799,14 @@
                 '<div class="card-calc">' +
                   '<div class="calc-result">' +
                     '<span class="calc-result-label">Volume</span>' +
-                    '<span class="calc-vol">' + (hasDims ? fmtVol(result.vol) : '\u2014') + '</span>' +
-                    '<span class="calc-wt">' + (hasPeso ? fmtPeso(result.wt) : '\u2014') + '</span>' +
+                    '<span class="calc-vol">' + (hasDims ? fmtVol(result.vol) : '—') + '</span>' +
+                    '<span class="calc-wt">' + (hasPeso ? fmtPeso(result.wt) : '—') + '</span>' +
                   '</div>' +
                 '</div>' +
                 '<div class="card-meta">' +
                   buildMetaItem('Lote', p.lote) + ' ' + buildMetaItem('GTIN-14', p.gtin) +
                 '</div>' +
-                (!hasDims ? '<div class="no-cubagem-warn">\u26A0 Dimens\u00F5es n\u00E3o dispon\u00EDveis.</div>' : '') +
+                (!hasDims ? '<div class="no-cubagem-warn">⚠ Dimensões não disponíveis.</div>' : '') +
               '</div>';
           } else {
             productPreview.textContent = '';
@@ -680,11 +818,11 @@
     if (searchForm) {
       searchForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        if (productDB.size === 0) { showToast('Dados ainda n\u00E3o carregados.', 'error'); return; }
+        if (productDB.size === 0) { showToast('Dados ainda não carregados.', 'error'); return; }
         var val = codeInput ? codeInput.value.trim() : '';
         var qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
         if (codeError) codeError.textContent = '';
-        if (!val) { if (codeError) codeError.textContent = 'Informe um c\u00F3digo ou descri\u00E7\u00E3o.'; if (codeInput) codeInput.focus(); return; }
+        if (!val) { if (codeError) codeError.textContent = 'Informe um código ou descrição.'; if (codeInput) codeInput.focus(); return; }
 
         var product = productDB.get(val);
         if (!product) {
@@ -696,8 +834,8 @@
           }
         }
 
-        if (!product) { if (codeError) codeError.textContent = 'Produto "' + val + '" n\u00E3o encontrado.'; if (codeInput) codeInput.focus(); return; }
-        if (qty < 1) { if (codeError) codeError.textContent = 'M\u00EDnimo: 1.'; if (qtyInput) qtyInput.focus(); return; }
+        if (!product) { if (codeError) codeError.textContent = 'Produto "' + val + '" não encontrado.'; if (codeInput) codeInput.focus(); return; }
+        if (qty < 1) { if (codeError) codeError.textContent = 'Mínimo: 1.'; if (qtyInput) qtyInput.focus(); return; }
 
         cartItems.push({ id: nextId++, product: product, qty: qty });
         renderCart();
@@ -721,10 +859,10 @@
     if (printBtn) {
       printBtn.addEventListener('click', function() {
         if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
-        if (printOrderNum) printOrderNum.textContent = (orderNumInput ? orderNumInput.value.trim() : '') || '\u2014';
-        if (printCustomerName) printCustomerName.textContent = (customerNameInput ? customerNameInput.value.trim() : '') || '\u2014';
+        if (printOrderNum) printOrderNum.textContent = (orderNumInput ? orderNumInput.value.trim() : '') || '—';
+        if (printCustomerName) printCustomerName.textContent = (customerNameInput ? customerNameInput.value.trim() : '') || '—';
         var now = new Date();
-        if (printTimestamp) printTimestamp.textContent = now.toLocaleDateString('pt-BR') + ' \u00E0s ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        if (printTimestamp) printTimestamp.textContent = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         window.print();
       });
     }
@@ -735,7 +873,7 @@
         var orderNum = (orderNumInput ? orderNumInput.value.trim() : '') || 'Sem_Numero';
         var customer = (customerNameInput ? customerNameInput.value.trim() : '') || 'Sem_Cliente';
         var filename = 'Pedido_' + orderNum + '_' + customer.replace(/\s+/g, '_') + '.csv';
-        var csv = '\ufeff';
+        var csv = '﻿';
         csv += 'Codigo;Descricao;Quantidade;Volume_m3;Peso_kg;Lote;GTIN\n';
         cartItems.forEach(function(item) {
           var r = calcItem(item.product, item.qty);
@@ -758,18 +896,47 @@
       saveOrderBtn.addEventListener('click', saveOrder);
     }
 
+    // --- Bulk Add wiring ---
+    if (bulkAddBtn) {
+      bulkAddBtn.addEventListener('click', openBulkModal);
+    }
+    if (bulkModal) {
+      bulkModal.addEventListener('click', function(e) {
+        var target = e.target;
+        if (target && (target.hasAttribute('data-bulk-close') || target.closest && target.closest('[data-bulk-close]'))) {
+          closeBulkModal();
+        }
+      });
+    }
+    if (bulkTextarea) {
+      bulkTextarea.addEventListener('input', function() { renderBulkPreview(bulkTextarea.value); });
+      bulkTextarea.addEventListener('paste', function() {
+        setTimeout(function() { renderBulkPreview(bulkTextarea.value); }, 0);
+      });
+      bulkTextarea.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          processBulkAdd();
+        }
+      });
+    }
+    if (bulkProcessBtn) {
+      bulkProcessBtn.addEventListener('click', processBulkAdd);
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && bulkModal && !bulkModal.hidden) {
+        closeBulkModal();
+      }
+    });
+
     console.log('[CXB] Event listeners attached');
 
-    // Load data
     loadData();
-
-    // Render saved orders
     renderSavedOrders();
 
     console.log('[CXB] Init complete');
   }
 
-  // Run init
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
