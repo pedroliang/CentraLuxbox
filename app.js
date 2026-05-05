@@ -413,6 +413,58 @@
     if (totalWeight) totalWeight.textContent = fmtPeso(w);
   }
 
+  // --- Print View (compact table) ---
+  function buildPrintView() {
+    // Header info
+    if (printOrderNum) printOrderNum.textContent = (orderNumInput ? orderNumInput.value.trim() : '') || '—';
+    if (printCustomerName) printCustomerName.textContent = (customerNameInput ? customerNameInput.value.trim() : '') || '—';
+    var now = new Date();
+    if (printTimestamp) {
+      printTimestamp.textContent = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Build table rows
+    var tbody = document.getElementById('printTableBody');
+    if (tbody) {
+      var rows = '';
+      var totV = 0, totW = 0, totB = 0;
+      for (var i = 0; i < cartItems.length; i++) {
+        var item = cartItems[i];
+        var p = item.product;
+        var qty = item.qty;
+        var r = calcItem(p, qty);
+        var hasDims = p.x !== null && p.y !== null && p.z !== null;
+        var hasPeso = p.peso !== null;
+        var rowClass = (!hasDims && !hasPeso) ? ' class="row-no-data"' : '';
+        rows += '<tr' + rowClass + '>'
+          + '<td class="col-code">' + escHtml(p.code) + '</td>'
+          + '<td class="col-name">' + escHtml(p.desc || '(sem descrição)') + '</td>'
+          + '<td class="col-num col-qty">' + qty.toLocaleString('pt-BR') + '</td>'
+          + '<td class="col-num">' + (p.x !== null ? fmtNum(p.x) : '—') + '</td>'
+          + '<td class="col-num">' + (p.y !== null ? fmtNum(p.y) : '—') + '</td>'
+          + '<td class="col-num">' + (p.z !== null ? fmtNum(p.z) : '—') + '</td>'
+          + '<td class="col-num col-vol">' + (hasDims ? r.vol.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '—') + '</td>'
+          + '<td class="col-num">' + (hasPeso ? fmtNum(p.peso) : '—') + '</td>'
+          + '<td class="col-num col-pesototal">' + (hasPeso ? r.wt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—') + '</td>'
+          + '</tr>';
+        totV += r.vol;
+        totW += r.wt;
+        totB += qty;
+      }
+      tbody.innerHTML = rows;
+
+      // Print totals block
+      var pti = document.getElementById('printTotalItems');
+      var ptb = document.getElementById('printTotalBoxes');
+      var ptv = document.getElementById('printTotalVolume');
+      var ptw = document.getElementById('printTotalWeight');
+      if (pti) pti.textContent = cartItems.length;
+      if (ptb) ptb.textContent = totB.toLocaleString('pt-BR');
+      if (ptv) ptv.textContent = fmtVol(totV);
+      if (ptw) ptw.textContent = fmtPeso(totW);
+    }
+  }
+
   // --- Order Management ---
   function saveOrder() {
     var orderNum = orderNumInput ? orderNumInput.value.trim() : '';
@@ -859,13 +911,16 @@
     if (printBtn) {
       printBtn.addEventListener('click', function() {
         if (cartItems.length === 0) { showToast('Adicione produtos primeiro.', 'error'); return; }
-        if (printOrderNum) printOrderNum.textContent = (orderNumInput ? orderNumInput.value.trim() : '') || '—';
-        if (printCustomerName) printCustomerName.textContent = (customerNameInput ? customerNameInput.value.trim() : '') || '—';
-        var now = new Date();
-        if (printTimestamp) printTimestamp.textContent = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        buildPrintView();
         window.print();
       });
     }
+
+    // Also rebuild on Ctrl+P (browser native print) so the layout is always fresh
+    window.addEventListener('beforeprint', function() {
+      if (cartItems.length > 0) buildPrintView();
+    });
+
 
     if (exportExcelBtn) {
       exportExcelBtn.addEventListener('click', function() {

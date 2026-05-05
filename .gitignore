@@ -1,0 +1,9 @@
+# Temp files
+app_v2.js
+index_v2.html
+style_bulk_addon.css
+test_marker.txt
+new_test_only_write.txt
+*_v2.*
+*_addon.*
+.claude/

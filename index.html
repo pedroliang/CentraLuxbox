@@ -13,12 +13,59 @@
 <body>
   <!-- Print Header (Hidden on screen) -->
   <div id="printHeader" class="print-only">
-    <div class="print-brand">CentraLux</div>
-    <div class="print-meta">
-      <div class="print-meta-item"><span>Pedido:</span> <strong id="printOrderNum"></strong></div>
-      <div class="print-meta-item"><span>Cliente:</span> <strong id="printCustomerName"></strong></div>
-      <div class="print-meta-item"><span>Expedição:</span> <strong id="printTimestamp"></strong></div>
+    <div class="print-header-top">
+      <div class="print-brand">CENTRALUX</div>
+      <div class="print-tagline">Consulta de Cubagem</div>
     </div>
+    <div class="print-meta">
+      <div class="print-meta-item"><span>Pedido</span><strong id="printOrderNum">—</strong></div>
+      <div class="print-meta-item"><span>Cliente</span><strong id="printCustomerName">—</strong></div>
+      <div class="print-meta-item"><span>Expedição</span><strong id="printTimestamp">—</strong></div>
+    </div>
+  </div>
+
+  <!-- Print Table (Hidden on screen) -->
+  <div id="printTableWrapper" class="print-only print-table-wrapper">
+    <table id="printTable" class="print-table">
+      <thead>
+        <tr>
+          <th class="col-code">Cód.</th>
+          <th class="col-name">Descrição</th>
+          <th class="col-num">Caixas</th>
+          <th class="col-num">X (cm)</th>
+          <th class="col-num">Y (cm)</th>
+          <th class="col-num">Z (cm)</th>
+          <th class="col-num">Volume (m³)</th>
+          <th class="col-num">Peso/Cx (kg)</th>
+          <th class="col-num">Peso Total (kg)</th>
+        </tr>
+      </thead>
+      <tbody id="printTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Print Totals (Hidden on screen) -->
+  <div id="printTotalsBlock" class="print-only print-totals-block">
+    <div class="print-totals-title">Totais Consolidados</div>
+    <div class="print-totals-grid">
+      <div class="print-total-card">
+        <span class="print-total-label">Itens</span>
+        <span id="printTotalItems" class="print-total-value">0</span>
+      </div>
+      <div class="print-total-card">
+        <span class="print-total-label">Caixas</span>
+        <span id="printTotalBoxes" class="print-total-value">0</span>
+      </div>
+      <div class="print-total-card">
+        <span class="print-total-label">Volume</span>
+        <span id="printTotalVolume" class="print-total-value">0,000 m³</span>
+      </div>
+      <div class="print-total-card">
+        <span class="print-total-label">Peso</span>
+        <span id="printTotalWeight" class="print-total-value">0,00 kg</span>
+      </div>
+    </div>
+    <div class="print-footer-line">CentraLu Xbox &middot; Sistema de Cubagem &middot; Centralux</div>
   </div>
 
   <!-- Background blobs -->
