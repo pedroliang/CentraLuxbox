@@ -8,7 +8,9 @@
   // --- Constants ---
   var SHEET_ID = '1fRqUo8vH4awjCwV12U0fhR2bdBSRGFUVMlU8PozUsoQ';
   var SHEET_GID = '0';
-  var SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMv8S8L3R_B_q-9v1-i9-8-i-8-i-8-i-8-i-8-i-8-i-8-i-8/pub?gid=0&single=true&output=csv'; // This will likely fall back to JSONP unless the new sheet is published
+  // Endpoint de exportacao CSV: preserva codigos de TEXTO (ex.: "6400L") e tem CORS liberado.
+  // O gviz/JSONP tipa a coluna como numero e zera celulas de texto, por isso NAO e a fonte principal.
+  var SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&gid=' + SHEET_GID;
 
   var SUPABASE_URL = 'https://fruwdnbysjpaccregbnj.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZydXdkbmJ5c2pwYWNjcmVnYm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjM3NTIsImV4cCI6MjA4OTY5OTc1Mn0.l7R4DGuXTKIxtDPWGfGvKCLHPIXWt8jTYoN-8eeys34';
@@ -174,9 +176,11 @@
     setStatus('loading', 'Carregando dados...');
     console.log('[CXB] loadData: starting...');
 
-    var p = loadViaJSONP().catch(function(err) {
-      console.warn('[CXB] JSONP failed:', err.message, '- trying CSV...');
-      return loadViaCSV();
+    // CSV primeiro: preserva codigos de texto (ex.: "6400L"). gviz/JSONP fica de reserva
+    // (note que o gviz zera codigos alfanumericos, entao so cobre o caso numerico).
+    var p = loadViaCSV().catch(function(err) {
+      console.warn('[CXB] CSV failed:', err.message, '- trying JSONP...');
+      return loadViaJSONP();
     });
 
     p.then(function(rows) {
@@ -224,7 +228,9 @@
       for (var k = 0; k < rows.length; k++) {
         var row = rows[k];
         var code = (row[COL.CODE] || '').trim();
-        if (!code || isNaN(Number(code))) continue;
+        // Aceita codigos numericos e alfanumericos (ex.: "6400" e "6400L").
+        // Exige ao menos um digito para descartar linhas de cabecalho/lixo.
+        if (!code || !/\d/.test(code)) continue;
         if (!productDB.has(code)) {
           productDB.set(code, {
             code: code,
@@ -978,24 +984,4 @@
     if (bulkProcessBtn) {
       bulkProcessBtn.addEventListener('click', processBulkAdd);
     }
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && bulkModal && !bulkModal.hidden) {
-        closeBulkModal();
-      }
-    });
-
-    console.log('[CXB] Event listeners attached');
-
-    loadData();
-    renderSavedOrders();
-
-    console.log('[CXB] Init complete');
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
+    document.addEventListener('keydown', fu
