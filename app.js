@@ -984,4 +984,24 @@
     if (bulkProcessBtn) {
       bulkProcessBtn.addEventListener('click', processBulkAdd);
     }
-    document.addEventListener('keydown', fu
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && bulkModal && !bulkModal.hidden) {
+        closeBulkModal();
+      }
+    });
+
+    console.log('[CXB] Event listeners attached');
+
+    loadData();
+    renderSavedOrders();
+
+    console.log('[CXB] Init complete');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
