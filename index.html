@@ -10,7 +10,42 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="cxb-locked">
+  <!-- Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-card glass-card">
+      <svg class="login-logo" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <rect width="40" height="40" rx="10" fill="url(#loginLogoGrad)"/>
+        <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" opacity="0.9"/>
+        <circle cx="20" cy="20" r="4" fill="white"/>
+        <defs>
+          <linearGradient id="loginLogoGrad" x1="0" y1="0" x2="40" y2="40">
+            <stop offset="0%" stop-color="#6c63ff"/>
+            <stop offset="100%" stop-color="#00d4aa"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <h1 class="login-title">CentraLu Xbox</h1>
+      <p class="login-sub">Acesso restrito. Entre com suas credenciais.</p>
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">E-mail</label>
+          <div class="input-wrapper">
+            <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="username" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Senha</label>
+          <div class="input-wrapper">
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
+          </div>
+        </div>
+        <div id="loginError" class="login-error" aria-live="polite"></div>
+        <button type="submit" class="btn-primary login-btn" id="loginBtn">Entrar</button>
+      </form>
+    </div>
+  </div>
+
   <!-- Print Header (Hidden on screen) -->
   <div id="printHeader" class="print-only">
     <div class="print-header-top">
@@ -109,6 +144,11 @@
           </svg>
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button id="logoutBtn" class="theme-btn" hidden aria-label="Sair" title="Sair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
         </button>
       </div>
@@ -355,6 +395,7 @@
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
   <script>console.log('[INLINE] Test script running - JS execution is working');</script>
+  <script src="auth.js" defer charset="utf-8"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="app.js" defer charset="utf-8"></script>
 </body>
