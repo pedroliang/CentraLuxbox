@@ -20,9 +20,6 @@
 
   // --- State ---
   var productDB = new Map();
-  // Indice auxiliar: chave normalizada (MAIUSCULA, sem espacos/pontuacao) -> produto.
-  // Permite achar "6400L" digitando "6400l", "6400 L" ou "6400-L".
-  var productIndex = new Map();
   var cartItems = [];
   var nextId = 1;
   var supabase = null;
@@ -83,18 +80,6 @@
     var s = String(val).replace(/[^\d,.]/g, '').trim().replace(',', '.');
     var n = parseFloat(s);
     return isNaN(n) ? null : n;
-  }
-
-  // Normaliza um codigo/SKU para busca: remove caracteres invisiveis, espacos
-  // (inclusive NBSP vindo do Sheets) e pontuacao, e converte para MAIUSCULAS.
-  function normCode(val) {
-    if (val === null || val === undefined) return '';
-    return String(val)
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/\u00A0/g, ' ')
-      .trim()
-      .toUpperCase()
-      .replace(/[\s.\-_\/\\]/g, '');
   }
 
   // --- CSV Parser ---
@@ -218,20 +203,16 @@
 
         var map = { CODE: 0, DESC: 1, X_CM: 15, Y_CM: 16, Z_CM: 17, PESO: 18, LOTE: 19, GTIN: 20 };
 
-        // A planilha repete cabecalhos (LOTE / GTIN-14 / P/CX aparecem 2x).
-        // Vale sempre a PRIMEIRA ocorrencia, que e onde os dados realmente estao.
-        var seen = {};
-        function setCol(name, j) { if (!seen[name]) { seen[name] = true; map[name] = j; } }
         for (var j = 0; j < h.length; j++) {
           var val = String(h[j]).toUpperCase().trim();
-          if (val === 'X (CM)') setCol('X_CM', j);
-          else if (val === 'Y (CM)') setCol('Y_CM', j);
-          else if (val === 'Z (CM)') setCol('Z_CM', j);
-          else if (val.indexOf('PESO') !== -1) setCol('PESO', j);
-          else if (val.indexOf('COD') !== -1) setCol('CODE', j);
-          else if (val.indexOf('DESC') !== -1) setCol('DESC', j);
-          else if (val.indexOf('LOTE') !== -1) setCol('LOTE', j);
-          else if (val.indexOf('GTIN') !== -1) setCol('GTIN', j);
+          if (val === 'X (CM)') map.X_CM = j;
+          else if (val === 'Y (CM)') map.Y_CM = j;
+          else if (val === 'Z (CM)') map.Z_CM = j;
+          else if (val.indexOf('PESO') !== -1) map.PESO = j;
+          else if (val.indexOf('COD') !== -1) map.CODE = j;
+          else if (val.indexOf('DESC') !== -1) map.DESC = j;
+          else if (val.indexOf('LOTE') !== -1) map.LOTE = j;
+          else if (val.indexOf('GTIN') !== -1) map.GTIN = j;
         }
         COL = map;
         console.log('[CXB] Final Mapped columns:', COL);
@@ -244,38 +225,23 @@
       }
 
       productDB.clear();
-      productIndex.clear();
       for (var k = 0; k < rows.length; k++) {
         var row = rows[k];
-        if (!row) continue;
-        var code = String(row[COL.CODE] === null || row[COL.CODE] === undefined ? '' : row[COL.CODE])
-          .replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\u00A0/g, ' ').trim();
-        if (!code) continue;
-        var key = normCode(code);
-        if (!key) continue;
-        // Descarta apenas cabecalhos/lixo. (Antes exigia-se um digito no codigo,
-        // o que derrubava SKUs alfanumericos/so-letras da coluna A.)
-        if (/^(COD|CODIGO|SKU|ITEM|PRODUTO|TOTAL|TOTAIS)$/.test(key)) continue;
-        var desc = (row[COL.DESC] || '').trim();
-        var xv = parseNum(row[COL.X_CM]);
-        var yv = parseNum(row[COL.Y_CM]);
-        var zv = parseNum(row[COL.Z_CM]);
-        var pv = parsePeso(row[COL.PESO]);
-        // Codigo sem nenhum digito so entra se a linha tiver conteudo real de produto.
-        if (!/\d/.test(key) && !desc && xv === null && yv === null && zv === null && pv === null) continue;
+        var code = (row[COL.CODE] || '').trim();
+        // Aceita codigos numericos e alfanumericos (ex.: "6400" e "6400L").
+        // Exige ao menos um digito para descartar linhas de cabecalho/lixo.
+        if (!code || !/\d/.test(code)) continue;
         if (!productDB.has(code)) {
-          var prod = {
+          productDB.set(code, {
             code: code,
-            desc: desc,
-            x: xv,
-            y: yv,
-            z: zv,
-            peso: pv,
+            desc: (row[COL.DESC] || '').trim(),
+            x: parseNum(row[COL.X_CM]),
+            y: parseNum(row[COL.Y_CM]),
+            z: parseNum(row[COL.Z_CM]),
+            peso: parsePeso(row[COL.PESO]),
             lote: (row[COL.LOTE] || '').trim(),
             gtin: (row[COL.GTIN] || '').trim()
-          };
-          productDB.set(code, prod);
-          if (!productIndex.has(key)) productIndex.set(key, prod);
+          });
         }
       }
       var count = productDB.size;
@@ -646,30 +612,20 @@
       var raw = lines[i];
       var line = raw.trim();
       if (!line) continue;
-      // Muitos SKUs tem espacos (ex.: "CM5254 PRATA", "DUCHA BICO OURO").
-      // Por isso o codigo NAO pode ser apenas o primeiro pedaco da linha.
-      var code, qtyRaw;
-      var sepParts = line.split(/[\t;|]/);
-      if (sepParts.length === 1) sepParts = line.split(/,(?=\s*\d+\s*$)/);
-      if (sepParts.length > 1) {
-        // Separador explicito (tab, ; , |) -> codigo = tudo antes do ultimo campo
-        qtyRaw = sepParts[sepParts.length - 1].trim();
-        code = sepParts.slice(0, sepParts.length - 1).join(' ').trim();
-      } else {
-        // Separado por espacos: a quantidade e o ultimo token SO se for numerico puro
-        var ws = line.split(/\s+/).filter(function(s) { return s.length > 0; });
-        if (ws.length > 1 && /^\d+$/.test(ws[ws.length - 1])) {
-          qtyRaw = ws[ws.length - 1];
-          code = ws.slice(0, ws.length - 1).join(' ');
+      var parts = line.split(/[\t;,|]|\s{1,}/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+      if (parts.length === 0) continue;
+      var code = parts[0];
+      var qtyRaw = parts.length > 1 ? parts[parts.length - 1] : '1';
+      code = code.replace(/[^\w-]/g, '');
+      var qty = parseInt(String(qtyRaw).replace(/[^\d-]/g, ''), 10);
+      if (isNaN(qty) || qty < 1) {
+        if (parts.length === 1) {
+          qty = 1;
         } else {
-          qtyRaw = '1';
-          code = ws.join(' ');
+          result.errors.push({ line: i + 1, raw: raw, reason: 'Quantidade invalida' });
+          continue;
         }
       }
-      if (!code) continue;
-      code = code.replace(/[^0-9A-Za-z\u00C0-\u024F._\-\/ ]/g, '').replace(/\s+/g, ' ').trim();
-      var qty = parseInt(String(qtyRaw).replace(/[^\d-]/g, ''), 10);
-      if (isNaN(qty) || qty < 1) qty = 1;
       if (!code) {
         result.errors.push({ line: i + 1, raw: raw, reason: 'Codigo vazio' });
         continue;
@@ -680,29 +636,14 @@
   }
 
   function findProductByCode(code) {
-    if (!code && code !== 0) return null;
-    var direct = productDB.get(String(code).trim());
+    if (!code) return null;
+    var direct = productDB.get(code);
     if (direct) return direct;
-    var key = normCode(code);
-    if (!key) return null;
-    var hit = productIndex.get(key);
-    if (hit) return hit;
-    // Tolera zeros a esquerda ("06400L" x "6400L").
-    var stripped = key.replace(/^0+/, '');
-    if (stripped && stripped !== key && productIndex.has(stripped)) return productIndex.get(stripped);
-    var padded = productIndex.get('0' + key);
-    if (padded) return padded;
-    return null;
-  }
-
-  // Busca por descricao - usada SOMENTE depois de falhar a busca por codigo.
-  function findProductByDesc(term) {
-    var t = String(term === null || term === undefined ? '' : term).toLowerCase().trim();
-    if (!t) return null;
+    var low = String(code).toLowerCase();
     var iter = productDB.values();
     var entry = iter.next();
     while (!entry.done) {
-      if (entry.value.desc && entry.value.desc.toLowerCase().indexOf(t) !== -1) return entry.value;
+      if (String(entry.value.code).toLowerCase() === low) return entry.value;
       entry = iter.next();
     }
     return null;
@@ -884,10 +825,17 @@
     if (codeInput) {
       codeInput.addEventListener('input', function() {
         if (codeError) codeError.textContent = '';
-        var val = codeInput.value.trim();
+        var val = codeInput.value.toLowerCase().trim();
         if (!val) { if (productPreview) productPreview.textContent = ''; return; }
-        // Codigo primeiro (case-insensitive), descricao so como fallback.
-        var p = findProductByCode(val) || findProductByDesc(val);
+        var p = productDB.get(val);
+        if (!p) {
+          var iter = productDB.values();
+          var entry = iter.next();
+          while (!entry.done) {
+            if (entry.value.desc.toLowerCase().indexOf(val) !== -1) { p = entry.value; break; }
+            entry = iter.next();
+          }
+        }
         if (productPreview) {
           if (p) {
             var hasDims = p.x !== null && p.y !== null && p.z !== null;
@@ -934,7 +882,15 @@
         if (codeError) codeError.textContent = '';
         if (!val) { if (codeError) codeError.textContent = 'Informe um código ou descrição.'; if (codeInput) codeInput.focus(); return; }
 
-        var product = findProductByCode(val) || findProductByDesc(val);
+        var product = productDB.get(val);
+        if (!product) {
+          var iter = productDB.values();
+          var entry = iter.next();
+          while (!entry.done) {
+            if (entry.value.desc.toLowerCase().indexOf(val.toLowerCase()) !== -1) { product = entry.value; break; }
+            entry = iter.next();
+          }
+        }
 
         if (!product) { if (codeError) codeError.textContent = 'Produto "' + val + '" não encontrado.'; if (codeInput) codeInput.focus(); return; }
         if (qty < 1) { if (codeError) codeError.textContent = 'Mínimo: 1.'; if (qtyInput) qtyInput.focus(); return; }
